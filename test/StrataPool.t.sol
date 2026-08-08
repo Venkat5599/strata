@@ -1,0 +1,365 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.28;
+
+import {Test} from "forge-std/Test.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import {StrataPool} from "../src/StrataPool.sol";
+import {StrataTypes} from "../src/StrataResolver.sol";
+import {ICleanversePolicy} from "../src/interfaces/ICleanversePolicy.sol";
+
+/// @notice Six-decimal stand-in for aUSDC.
+contract MockAToken is ERC20 {
+    constructor() ERC20("Mock aUSDC", "aUSDC") {}
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+}
+
+/// @notice Stand-in for the Cleanverse A-Pass ERC-721 registry.
+contract MockAPass {
+    mapping(address => uint256) public tokenIdOf;
+
+    function issue(address holder, uint256 tokenId) external {
+        tokenIdOf[holder] = tokenId;
+    }
+
+    function revoke(address holder) external {
+        tokenIdOf[holder] = 0;
+    }
+
+    function balanceOf(address holder) external view returns (uint256) {
+        return tokenIdOf[holder] == 0 ? 0 : 1;
+    }
+
+    /// @dev Reverts for non-holders, matching the live contract.
+    function getTokenId(address holder) external view returns (uint256) {
+        uint256 id = tokenIdOf[holder];
+        require(id != 0, "no apass");
+        return id;
+    }
+
+    function ownerOf(uint256) external pure returns (address) {
+        return address(0);
+    }
+}
+
+/// @notice Stand-in for the Cleanverse Policy contract.
+/// @dev Reproduces the behaviour that matters most: canTransfer REVERTS for a party with no
+///      A-Pass rather than returning false. Verified against the live Monad testnet contract
+///      at 0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd on 2026-08-08. Mocking the revert
+///      rather than a false return is the whole point - if the mock returned false, the
+///      try/catch in StrataPool would never be exercised and the tests would pass against
+///      behaviour the real chain does not have.
+contract MockPolicy is ICleanversePolicy {
+    error ApassRequired(address party);
+
+    MockAPass public immutable passRegistry;
+    mapping(address => bool) public registeredToken;
+    mapping(address => bool) public frozenParty;
+    mapping(address => bool) public pausedToken;
+
+    constructor(MockAPass registry) {
+        passRegistry = registry;
+    }
+
+    function registerToken(address token) external {
+        registeredToken[token] = true;
+    }
+
+    function setFrozen(address party, bool value) external {
+        frozenParty[party] = value;
+    }
+
+    function setPaused(address token, bool value) external {
+        pausedToken[token] = value;
+    }
+
+    function canTransfer(address token, address from, address to, uint256) external view returns (bool) {
+        if (!registeredToken[token]) revert("TokenNotRegistered");
+        // Zero address is exempt on both sides (mint and burn paths), as probed live.
+        if (from != address(0) && passRegistry.balanceOf(from) == 0) revert ApassRequired(from);
+        if (to != address(0) && passRegistry.balanceOf(to) == 0) revert ApassRequired(to);
+        if (frozenParty[from] || frozenParty[to]) return false;
+        return true;
+    }
+
+    function isFrozen(address, address holder) external view returns (bool) {
+        return frozenParty[holder];
+    }
+
+    function isPaused(address token) external view returns (bool) {
+        return pausedToken[token];
+    }
+
+    function isTokenRegistered(address token) external view returns (bool) {
+        return registeredToken[token];
+    }
+
+    function apass() external view returns (address) {
+        return address(passRegistry);
+    }
+}
+
+/// @title StrataPoolTest
+/// @notice Integration behaviour of the pool against a policy that reverts the way the real
+///         Cleanverse contract does.
+contract StrataPoolTest is Test {
+    MockAToken internal token;
+    MockAPass internal passRegistry;
+    MockPolicy internal policyMock;
+    StrataPool internal pool;
+
+    address internal owner = address(0xA11CE);
+    address internal verifiedLp = address(0xBEEF);
+    address internal openLp = address(0xCAFE);
+
+    uint256 internal constant ONE = 1e6;
+
+    /// @dev Cached because `pool.STRATUM_X()` is an external call. Passing it inline as an
+    ///      argument would consume the preceding vm.prank/vm.expectRevert, which silently
+    ///      applies the cheatcode to the constant read instead of the call under test.
+    uint8 internal OPEN_ID;
+    uint8 internal VERIFIED_ID;
+
+    function setUp() public {
+        token = new MockAToken();
+        passRegistry = new MockAPass();
+        policyMock = new MockPolicy(passRegistry);
+        policyMock.registerToken(address(token));
+
+        pool = new StrataPool(IERC20(address(token)), ICleanversePolicy(address(policyMock)), owner);
+
+        // The pool itself must hold a credential, because canTransfer validates both parties
+        // and the pool is the counterparty on every redemption.
+        passRegistry.issue(address(pool), 999);
+        passRegistry.issue(verifiedLp, 1001);
+
+        token.mint(verifiedLp, 1_000 * ONE);
+        token.mint(openLp, 1_000 * ONE);
+
+        vm.prank(verifiedLp);
+        token.approve(address(pool), type(uint256).max);
+        vm.prank(openLp);
+        token.approve(address(pool), type(uint256).max);
+
+        OPEN_ID = pool.STRATUM_OPEN();
+        VERIFIED_ID = pool.STRATUM_VERIFIED();
+    }
+
+    // ---------------------------------------------------------------------
+    // S1 - one pool, one curve, two strata
+    // ---------------------------------------------------------------------
+
+    /// @notice PRD success criterion S1: a verified and an unverified LP hold positions in the
+    ///         same pool, on the same curve, in different strata.
+    function test_S1_bothLpsShareOnePoolAndCurve() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+        vm.prank(openLp);
+        pool.deposit(100 * ONE);
+
+        // One asset balance. This is the claim the whole project rests on.
+        assertEq(token.balanceOf(address(pool)), 200 * ONE, "a single pooled balance");
+
+        (bytes32 verifiedRef,) = pool.credentialOf(verifiedLp);
+        (bytes32 openRef,) = pool.credentialOf(openLp);
+
+        StrataTypes.Position[] memory vLots = pool.lotsOf(verifiedRef);
+        StrataTypes.Position[] memory oLots = pool.lotsOf(openRef);
+
+        assertEq(vLots[0].stratumId, VERIFIED_ID, "credentialled LP lands in VERIFIED");
+        assertEq(oLots[0].stratumId, OPEN_ID, "uncredentialled LP lands in OPEN");
+        assertTrue(verifiedRef != openRef, "the two credentials are distinct");
+    }
+
+    // ---------------------------------------------------------------------
+    // S2 - the invention
+    // ---------------------------------------------------------------------
+
+    /// @notice PRD success criterion S2: an unverified full withdrawal returns Routed, not a revert.
+    /// @dev The LP deposits while unverified (OPEN), later gains a credential and deposits again
+    ///      (VERIFIED), then asks to exit everything. Only the OPEN portion clears once the bar
+    ///      on VERIFIED is raised above what this redeemer holds.
+    function test_S2_partialExitRoutesInsteadOfReverting() public {
+        vm.prank(openLp);
+        pool.deposit(58 * ONE); // OPEN, no credential yet
+
+        passRegistry.issue(openLp, 2002); // credential granted later
+        vm.prank(openLp);
+        pool.deposit(42 * ONE); // VERIFIED
+
+        // Raise the bar on VERIFIED so this redeemer no longer clears it, leaving OPEN legal.
+        vm.prank(owner);
+        pool.configureStratum(VERIFIED_ID, 2, 0, 25);
+
+        uint256 before = token.balanceOf(openLp);
+
+        vm.prank(openLp);
+        StrataTypes.ExitPlan memory plan = pool.withdraw(uint128(100 * ONE));
+
+        assertEq(uint8(plan.branch), uint8(StrataTypes.Branch.Routed), "must route, not revert");
+        assertEq(plan.burnable, 58 * ONE, "only the OPEN portion is legally redeemable");
+        assertEq(plan.deferred, 42 * ONE, "the restricted portion defers");
+        assertEq(token.balanceOf(openLp) - before, 58 * ONE, "paid exactly the redeemable portion");
+    }
+
+    /// @notice A fully cleared LP exits in one call.
+    function test_directExitPaysInFull() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+
+        uint256 before = token.balanceOf(verifiedLp);
+
+        vm.prank(verifiedLp);
+        StrataTypes.ExitPlan memory plan = pool.withdraw(uint128(100 * ONE));
+
+        assertEq(uint8(plan.branch), uint8(StrataTypes.Branch.Direct), "must be Direct");
+        assertEq(token.balanceOf(verifiedLp) - before, 100 * ONE, "paid in full");
+        assertEq(pool.balanceOf(verifiedLp), 0, "all shares burned");
+    }
+
+    // ---------------------------------------------------------------------
+    // S4 - revocation widens the basis
+    // ---------------------------------------------------------------------
+
+    /// @notice PRD success criterion S4: revocation flips a stratum to Blocked and widens the basis.
+    /// @dev This is demo beat 3, asserted rather than merely demonstrated.
+    function test_S4_revocationBlocksStratumAndWidensBasis() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+
+        int256 basisBefore = pool.basis(VERIFIED_ID, OPEN_ID);
+        assertEq(basisBefore, 225, "VERIFIED trades 225 bps above OPEN while both are legal");
+
+        // Cleanverse freezes the credential upstream.
+        policyMock.setFrozen(verifiedLp, true);
+        pool.syncStratum(VERIFIED_ID, verifiedLp);
+
+        assertTrue(pool.stratum(VERIFIED_ID).blocked, "stratum must flip to blocked");
+        assertEq(pool.price(VERIFIED_ID), 0, "a claim with no legal path is not worth par");
+
+        int256 basisAfter = pool.basis(VERIFIED_ID, OPEN_ID);
+        assertEq(basisAfter, -9750, "the basis widens: the restriction now has a visible price");
+        assertLt(basisAfter, basisBefore, "revocation must widen the gap, never narrow it");
+    }
+
+    /// @notice A frozen holder cannot exit at all, and is told why.
+    function test_frozenHolderIsBlockedWithReason() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+
+        policyMock.setFrozen(verifiedLp, true);
+
+        uint256 before = token.balanceOf(verifiedLp);
+
+        vm.prank(verifiedLp);
+        StrataTypes.ExitPlan memory plan = pool.withdraw(uint128(100 * ONE));
+
+        assertEq(uint8(plan.branch), uint8(StrataTypes.Branch.Blocked), "frozen means Blocked");
+        assertEq(plan.reason, StrataTypes.REASON_FROZEN, "the reason is recorded on-chain");
+        assertEq(token.balanceOf(verifiedLp), before, "not a single unit moved");
+    }
+
+    /// @notice A blocked exit emits a receipt instead of reverting.
+    /// @dev Reverting would erase the reason code and leave no on-chain record of the attempt,
+    ///      which is exactly what a compliance audit trail must not do.
+    function test_blockedExitEmitsRatherThanReverts() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+        policyMock.setFrozen(verifiedLp, true);
+
+        (bytes32 ref,) = pool.credentialOf(verifiedLp);
+
+        vm.expectEmit(true, true, false, true, address(pool));
+        emit StrataPool.ExitPlanned(
+            ref, verifiedLp, StrataTypes.Branch.Blocked, 0, uint128(100 * ONE), StrataTypes.REASON_FROZEN
+        );
+
+        vm.prank(verifiedLp);
+        pool.withdraw(uint128(100 * ONE));
+    }
+
+    // ---------------------------------------------------------------------
+    // Accounting and safety
+    // ---------------------------------------------------------------------
+
+    /// @notice Settlement never pays out more than the plan authorised.
+    function testFuzz_settlementMatchesPlan(uint128 depositAmount, uint128 requested) public {
+        depositAmount = uint128(bound(depositAmount, 1, 1_000 * ONE));
+        requested = uint128(bound(requested, 1, 2_000 * ONE));
+
+        vm.prank(verifiedLp);
+        pool.deposit(depositAmount);
+
+        uint256 before = token.balanceOf(verifiedLp);
+
+        vm.prank(verifiedLp);
+        StrataTypes.ExitPlan memory plan = pool.withdraw(requested);
+
+        assertEq(token.balanceOf(verifiedLp) - before, plan.burnable, "paid exactly the planned amount");
+        assertLe(plan.burnable, depositAmount, "never pays out more than was deposited");
+        assertEq(
+            uint256(plan.burnable) + uint256(plan.deferred), uint256(requested), "request fully accounted"
+        );
+    }
+
+    /// @notice previewExit agrees with what withdraw actually settles.
+    /// @dev The frontend renders beat 2 from previewExit before the user signs. If the preview
+    ///      disagreed with settlement, the demo would show a number the chain would not honour.
+    function test_previewMatchesSettlement() public {
+        vm.prank(openLp);
+        pool.deposit(58 * ONE);
+        passRegistry.issue(openLp, 3003);
+        vm.prank(openLp);
+        pool.deposit(42 * ONE);
+        vm.prank(owner);
+        pool.configureStratum(VERIFIED_ID, 2, 0, 25);
+
+        StrataTypes.ExitPlan memory preview = pool.previewExit(openLp, uint128(100 * ONE));
+
+        vm.prank(openLp);
+        StrataTypes.ExitPlan memory actual = pool.withdraw(uint128(100 * ONE));
+
+        assertEq(uint8(preview.branch), uint8(actual.branch), "branch must match");
+        assertEq(preview.burnable, actual.burnable, "burnable must match");
+        assertEq(preview.deferred, actual.deferred, "deferred must match");
+    }
+
+    /// @notice Shares cannot be transferred to a clean wallet to launder an exit.
+    function test_sharesAreNonTransferable() public {
+        vm.prank(verifiedLp);
+        pool.deposit(100 * ONE);
+
+        vm.prank(verifiedLp);
+        vm.expectRevert(StrataPool.SharesAreNonTransferable.selector);
+        pool.transfer(openLp, 1);
+    }
+
+    /// @notice Deploying against an asset the policy does not know fails loudly at construction.
+    function test_deployRejectsUnregisteredAsset() public {
+        MockAToken stranger = new MockAToken();
+        vm.expectRevert(
+            abi.encodeWithSelector(StrataPool.AssetNotRegisteredWithPolicy.selector, address(stranger))
+        );
+        new StrataPool(IERC20(address(stranger)), ICleanversePolicy(address(policyMock)), owner);
+    }
+
+    /// @notice Only the owner may reconfigure a stratum.
+    function test_onlyOwnerConfiguresStrata() public {
+        vm.prank(openLp);
+        vm.expectRevert();
+        pool.configureStratum(OPEN_ID, 5, 0, 100);
+    }
+
+    /// @notice Share decimals mirror the underlying asset.
+    function test_decimalsMirrorAsset() public view {
+        assertEq(pool.decimals(), 6, "aUSDC is a six-decimal asset");
+    }
+}
