@@ -162,7 +162,7 @@ export default function Landing() {
       </section>
 
       <footer className="ef-footer">
-        <div className="ef-foot-word" data-sr="rise">STRATA</div>
+        <div className="ef-foot-word">STRATA</div>
         <div className="ef-foot-meta">
           <span>Cleanverse Build: Trusted Assets / DeFi track</span>
           <a href="https://github.com/Venkat5599/strata" target="_blank" rel="noreferrer">github.com/Venkat5599/strata</a>
