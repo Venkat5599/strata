@@ -111,7 +111,8 @@ contract MockPolicy is ICleanversePolicy {
 /// @notice Integration behaviour of the pool against a policy that reverts the way the real
 ///         Cleanverse contract does.
 contract StrataPoolTest is Test {
-    MockAToken internal token;
+    MockAToken internal token; // plain USDC stand-in: the pooled asset
+    MockAToken internal aToken; // registered A-Token stand-in: the compliance reference
     MockAPass internal passRegistry;
     MockPolicy internal policyMock;
     StrataPool internal pool;
@@ -129,16 +130,16 @@ contract StrataPoolTest is Test {
     uint8 internal VERIFIED_ID;
 
     function setUp() public {
-        token = new MockAToken();
+        token = new MockAToken(); // pooled asset, freely holdable by anyone
+        aToken = new MockAToken(); // registered A-Token, used only as the policy reference
         passRegistry = new MockAPass();
         policyMock = new MockPolicy(passRegistry);
-        policyMock.registerToken(address(token));
+        policyMock.registerToken(address(aToken));
 
-        pool = new StrataPool(IERC20(address(token)), ICleanversePolicy(address(policyMock)), owner);
+        pool = new StrataPool(
+            IERC20(address(token)), IERC20(address(aToken)), ICleanversePolicy(address(policyMock)), owner
+        );
 
-        // The pool itself must hold a credential, because canTransfer validates both parties
-        // and the pool is the counterparty on every redemption.
-        passRegistry.issue(address(pool), 999);
         passRegistry.issue(verifiedLp, 1001);
 
         token.mint(verifiedLp, 1_000 * ONE);
@@ -342,13 +343,15 @@ contract StrataPoolTest is Test {
         pool.transfer(openLp, 1);
     }
 
-    /// @notice Deploying against an asset the policy does not know fails loudly at construction.
+    /// @notice Deploying against a compliance reference the policy does not know fails loudly.
     function test_deployRejectsUnregisteredAsset() public {
         MockAToken stranger = new MockAToken();
         vm.expectRevert(
             abi.encodeWithSelector(StrataPool.AssetNotRegisteredWithPolicy.selector, address(stranger))
         );
-        new StrataPool(IERC20(address(stranger)), ICleanversePolicy(address(policyMock)), owner);
+        new StrataPool(
+            IERC20(address(token)), IERC20(address(stranger)), ICleanversePolicy(address(policyMock)), owner
+        );
     }
 
     /// @notice Only the owner may reconfigure a stratum.

@@ -99,8 +99,23 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     // Immutable wiring
     // ---------------------------------------------------------------------
 
-    /// @notice The pooled asset. On Monad testnet this is aUSDC, a Cleanverse A-Token (CVA).
+    /// @notice The pooled asset. Plain USDC on Monad testnet.
+    /// @dev Deliberately NOT the A-Token. A Cleanverse A-Token enforces compliance on every
+    ///      transfer and refuses both parties without an A-Pass, which was verified on a fork
+    ///      of Monad testnet: a party holding no credential cannot receive aUSDC at all.
+    ///      Pooling it would therefore exclude the uncredentialled LP before STRATA ever got
+    ///      to grade their exit, collapsing this design back into the pool-level gate it
+    ///      exists to replace. Pooling plain USDC keeps the asset freely holdable and moves
+    ///      the restriction onto the claim, which is the entire thesis.
     IERC20 public immutable asset;
+
+    /// @notice The registered A-Token used as the reference instrument for policy queries.
+    /// @dev Cleanverse rules are bound to a registered A-Token: canTransfer reverts with
+    ///      TokenNotRegistered for anything else (verified live against plain USDC). So the
+    ///      pool asks its compliance questions against aUSDC while custodying USDC. The
+    ///      question being asked is about the credential of the party, and the A-Token is the
+    ///      instrument that question is denominated in.
+    IERC20 public immutable complianceRef;
 
     /// @notice The Cleanverse Policy (Validator) contract. The compliance source of truth.
     ICleanversePolicy public immutable policy;
@@ -130,24 +145,28 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     // Construction
     // ---------------------------------------------------------------------
 
-    /// @param asset_ The pooled A-Token (aUSDC on Monad testnet).
+    /// @param asset_ The pooled asset (plain USDC on Monad testnet).
+    /// @param complianceRef_ A registered Cleanverse A-Token (aUSDC) used as the reference
+    ///        instrument for every policy query. Not custodied.
     /// @param policy_ The Cleanverse Policy contract.
     /// @param owner_ Initial owner. Must be able to produce the EIP-191 signature that
     ///        Cleanverse /validator/register checks against owner().
-    constructor(IERC20 asset_, ICleanversePolicy policy_, address owner_)
-        ERC20("STRATA Pooled aUSDC", "sxaUSDC")
+    constructor(IERC20 asset_, IERC20 complianceRef_, ICleanversePolicy policy_, address owner_)
+        ERC20("STRATA Pooled USDC", "sxUSDC")
         Ownable(owner_)
     {
         if (address(asset_) == address(0) || address(policy_) == address(0)) revert ZeroAddress();
+        if (address(complianceRef_) == address(0)) revert ZeroAddress();
 
-        // Fail at construction rather than at the first withdrawal. An unregistered asset
-        // makes every canTransfer call revert with TokenNotRegistered, which would present
-        // as a mysterious runtime failure instead of a deployment mistake.
-        if (!policy_.isTokenRegistered(address(asset_))) {
-            revert AssetNotRegisteredWithPolicy(address(asset_));
+        // Fail at construction rather than at the first withdrawal. An unregistered reference
+        // makes every canTransfer call revert with TokenNotRegistered, which would present as
+        // a mysterious runtime failure instead of a deployment mistake.
+        if (!policy_.isTokenRegistered(address(complianceRef_))) {
+            revert AssetNotRegisteredWithPolicy(address(complianceRef_));
         }
 
         asset = asset_;
+        complianceRef = complianceRef_;
         policy = policy_;
         apass = IAPass(policy_.apass());
 
@@ -206,7 +225,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     ///         model anyway: a redemption burns shares and releases the underlying, so it is
     ///         a burn-side movement rather than a peer-to-peer transfer.
     function policyClears(address account) public view returns (bool) {
-        try policy.canTransfer(address(asset), address(0), account, 1) returns (bool ok) {
+        try policy.canTransfer(address(complianceRef), address(0), account, 1) returns (bool ok) {
             return ok;
         } catch {
             return false;
@@ -215,7 +234,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
     /// @notice Whether the Policy reports `account` frozen for this asset.
     function isFrozen(address account) public view returns (bool) {
-        try policy.isFrozen(address(asset), account) returns (bool f) {
+        try policy.isFrozen(address(complianceRef), account) returns (bool f) {
             return f;
         } catch {
             // A registry that cannot answer is treated as a freeze. Failing closed is the
@@ -431,7 +450,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
         if (stratumId >= _strata.length) revert UnknownStratum(stratumId);
         if (probe == address(0)) revert ZeroAddress();
 
-        bool shouldBlock = isFrozen(probe) || policy.isPaused(address(asset));
+        bool shouldBlock = isFrozen(probe) || policy.isPaused(address(complianceRef));
         if (shouldBlock == _strata[stratumId].blocked) return;
 
         _strata[stratumId].blocked = shouldBlock;
