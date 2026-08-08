@@ -90,7 +90,7 @@ export default function Landing() {
           </span>
         </h1>
         <div className="rp-hero-foot">
-          <p className="rp-hero-lead">An exit is graded, not refused.</p>
+          <p className="rp-hero-lead"><span className="mark">An exit is graded, not refused.</span></p>
           <Link href="/dashboard" className="rp-cta">Open the dashboard</Link>
         </div>
       </header>
@@ -154,6 +154,26 @@ export default function Landing() {
             <blockquote className="finding-quote">{f.quote}</blockquote>
           </article>
         ))}
+      </section>
+
+      <section className="rp-steps">
+        <div className="rp-kicker">[ HOW IT WORKS ]</div>
+        <h2 className="rp-steps-title">A clear path to a compliant exit.</h2>
+        <div className="rp-steps-grid">
+          {[
+            ["01", "Deposit", "Shares are stamped with the depositor credential at issuance."],
+            ["02", "Hold", "One balance, one price curve, many legal strata. Compliance sits on the claim."],
+            ["03", "Withdraw", "The resolver grades the request: Direct, Routed or Blocked, never a bare revert."],
+            ["04", "Settle", "Only the legally-redeemable portion burns. The rest defers, with a reason on-chain."],
+          ].map(([n, t, d]) => (
+            <div key={n} className="rp-step">
+              <div className="rp-step-n">{n}</div>
+              <div className="rp-step-rule"><span className="rp-step-node" /></div>
+              <h3 className="rp-step-t">{t}</h3>
+              <p className="rp-step-d">{d}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rp-deployed" id="deployed">
