@@ -1,6 +1,14 @@
 import type {Metadata} from "next";
+import {Poppins} from "next/font/google";
 import "./globals.css";
 import {Providers} from "./providers";
+
+const display = Poppins({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "STRATA - compliance-partitioned liquidity",
@@ -10,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en">
+    <html lang="en" className={display.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>
