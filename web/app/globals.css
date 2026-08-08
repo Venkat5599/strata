@@ -850,3 +850,13 @@ html[data-sr-ready] [data-sr="rise"].sr-in {
 @media (prefers-reduced-motion: reduce) {
   html[data-sr-ready] [data-sr="rise"] { clip-path: none !important; transform: none !important; }
 }
+
+
+/* ============================================================
+   SCROLL-LINKED PARALLAX
+   Drift written to --px; element translates by it. Default 0 = no move,
+   so without JS or under reduced-motion everything sits in place, visible.
+   ============================================================ */
+
+.px { transform: translateY(var(--px, 0)); will-change: transform; }
+@media (prefers-reduced-motion: reduce) { .px { transform: none !important; } }
