@@ -802,3 +802,20 @@ body { background: var(--ground); background-image: none; color: var(--ink); }
 .ef-foot-meta { max-width: 1200px; margin: 24px auto 0; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-top: 1px solid rgba(241,241,234,0.15); padding-top: 20px; }
 .ef-foot-meta span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; color: rgba(241,241,234,0.5); }
 .ef-foot-meta a { font-family: var(--mono); font-size: 12px; color: #f1f1ea; text-decoration: none; border-bottom: 1px solid rgba(241,241,234,0.3); }
+
+
+/* ============================================================
+   SCROLL REVEAL  (visible by default; motion only when JS-armed)
+   ============================================================ */
+
+html[data-sr-ready] [data-sr] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 720ms cubic-bezier(0.22, 0.7, 0.2, 1),
+    transform 720ms cubic-bezier(0.22, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+html[data-sr-ready] [data-sr].sr-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html[data-sr-ready] [data-sr] { opacity: 1 !important; transform: none !important; }
+}
