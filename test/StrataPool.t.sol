@@ -241,7 +241,8 @@ contract StrataPoolTest is Test {
 
         // Cleanverse freezes the credential upstream.
         policyMock.setFrozen(verifiedLp, true);
-        pool.syncStratum(VERIFIED_ID, verifiedLp);
+        vm.prank(owner);
+        pool.setStratumBlocked(VERIFIED_ID, true, StrataTypes.REASON_FROZEN);
 
         assertTrue(pool.stratum(VERIFIED_ID).blocked, "stratum must flip to blocked");
         assertEq(pool.price(VERIFIED_ID), 0, "a claim with no legal path is not worth par");
@@ -292,9 +293,13 @@ contract StrataPoolTest is Test {
     // ---------------------------------------------------------------------
 
     /// @notice Settlement never pays out more than the plan authorised.
+    /// @dev `requested` is bounded by the deposit because asking for more shares than are
+    ///      held is now rejected up front with InsufficientShares - see the F2 finding in
+    ///      StrataPoolAudit.t.sol, which covers that path directly. This test is about
+    ///      settlement matching the plan, not about the entitlement guard.
     function testFuzz_settlementMatchesPlan(uint128 depositAmount, uint128 requested) public {
         depositAmount = uint128(bound(depositAmount, 1, 1_000 * ONE));
-        requested = uint128(bound(requested, 1, 2_000 * ONE));
+        requested = uint128(bound(requested, 1, depositAmount));
 
         vm.prank(verifiedLp);
         pool.deposit(depositAmount);

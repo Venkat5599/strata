@@ -48,6 +48,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     error TooManyLots();
     error DiscountOutOfRange(uint16 discountBps);
     error DepositTooLarge(uint256 assets);
+    error InsufficientShares(uint256 held, uint256 requested);
 
     // ---------------------------------------------------------------------
     // Events
@@ -348,6 +349,14 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     function withdraw(uint128 shares) external nonReentrant returns (StrataTypes.ExitPlan memory plan) {
         if (shares == 0) revert ZeroAmount();
 
+        // Entitlement is computed from credential-keyed lots, but settlement burns the ERC20
+        // balance of the caller. Checking that balance up front keeps the two views from
+        // diverging: without it, a party who acquired the credential of another (an A-Pass is
+        // an ERC-721 and can move) would resolve against lots they cannot burn, and the call
+        // would fail deep inside _burn with an error that explains nothing.
+        uint256 held = balanceOf(msg.sender);
+        if (held < shares) revert InsufficientShares(held, shares);
+
         // A party verified after depositing must be able to reach the earlier position on
         // the way out, not only on the way in.
         linkCredential();
@@ -366,9 +375,10 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
         emit ExitPlanned(cviRef, msg.sender, plan.branch, plan.burnable, plan.deferred, plan.reason);
 
-        if (plan.deferred > 0) {
-            deferredShares[cviRef] += plan.deferred;
-        }
+        // Assigned, not accumulated. Incrementing made two attempts against one 42-share
+        // position report 84 deferred, and nothing ever decremented it on success. This is
+        // the amount outstanding as of the most recent attempt.
+        deferredShares[cviRef] = plan.deferred;
 
         if (plan.burnable == 0) {
             // Nothing to settle. The event above is the receipt.
@@ -439,24 +449,37 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     // Revocation
     // ---------------------------------------------------------------------
 
-    /// @notice Re-read Cleanverse and update whether a stratum is blocked.
-    /// @dev Permissionless on purpose. Enforcement of a revocation must not depend on the
-    ///      pool operator choosing to act on it, so anyone may push the pool back into
-    ///      agreement with the Policy contract.
-    /// @param stratumId The stratum to refresh.
-    /// @param probe An address holding the credential characteristic of that stratum, used
-    ///        as the live sample for the Policy read.
-    function syncStratum(uint8 stratumId, address probe) external {
+    /// @notice Re-read asset-level Cleanverse state and update whether a stratum is blocked.
+    /// @dev Permissionless, because enforcement of an asset-wide pause must not depend on the
+    ///      operator choosing to act on it. It reads ONLY policy.isPaused, which is a property
+    ///      of the asset rather than of any single holder.
+    ///
+    ///      An earlier version took an arbitrary `probe` address and blocked the stratum when
+    ///      that probe was frozen. That was a griefing vector: anyone could pass a frozen
+    ///      address, block the stratum for every holder in it, and drive price() to zero.
+    ///      It also conflated two different facts. One holder being frozen says nothing about
+    ///      the legal state of a stratum, and it is already handled per-redeemer through
+    ///      RedeemerView.frozen, which no caller can influence. Blocking an entire stratum on
+    ///      a credential revocation is a compliance decision, so it lives behind the owner.
+    function syncStratum(uint8 stratumId) external {
         if (stratumId >= _strata.length) revert UnknownStratum(stratumId);
-        if (probe == address(0)) revert ZeroAddress();
+        _setBlocked(stratumId, policy.isPaused(address(complianceRef)), StrataTypes.REASON_POLICY);
+    }
 
-        bool shouldBlock = isFrozen(probe) || policy.isPaused(address(complianceRef));
-        if (shouldBlock == _strata[stratumId].blocked) return;
+    /// @notice Block or unblock a stratum as a compliance action.
+    /// @dev Owner-only. This is the operator acting on a credential revocation reported by
+    ///      Cleanverse. Deliberately not permissionless - see syncStratum.
+    function setStratumBlocked(uint8 stratumId, bool blocked, uint8 reason) external onlyOwner {
+        if (stratumId >= _strata.length) revert UnknownStratum(stratumId);
+        _setBlocked(stratumId, blocked, reason);
+    }
 
-        _strata[stratumId].blocked = shouldBlock;
+    function _setBlocked(uint8 stratumId, bool blocked, uint8 reason) internal {
+        if (blocked == _strata[stratumId].blocked) return;
+        _strata[stratumId].blocked = blocked;
 
-        if (shouldBlock) {
-            emit StratumBlocked(stratumId, StrataTypes.REASON_FROZEN);
+        if (blocked) {
+            emit StratumBlocked(stratumId, reason);
         } else {
             emit StratumUnblocked(stratumId);
         }
@@ -529,7 +552,36 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
             policyClears: policyClears(account),
             timestamp: uint64(block.timestamp)
         });
-        return StrataResolver.resolve(v, _lots[cviRef], _strata, shares);
+        return StrataResolver.resolve(v, _effectiveLots(account, cviRef), _strata, shares);
+    }
+
+    /// @dev The lot set withdraw() will actually resolve against. withdraw() calls
+    ///      linkCredential() first, so a party verified after depositing is resolved against
+    ///      the union of their anonymous and credentialled lots. A view that ignored that
+    ///      would show BLOCKED in the interface while the chain returned ROUTED, which means
+    ///      the demo would display a number the contract does not honour.
+    function _effectiveLots(address account, bytes32 cviRef)
+        internal
+        view
+        returns (StrataTypes.Position[] memory merged)
+    {
+        bytes32 openRef = keccak256(abi.encodePacked("strata.open", account));
+        StrataTypes.Position[] storage own = _lots[cviRef];
+        if (cviRef == openRef) return own;
+
+        StrataTypes.Position[] storage anon = _lots[openRef];
+        merged = new StrataTypes.Position[](own.length + anon.length);
+        for (uint256 i = 0; i < own.length; ++i) {
+            merged[i] = own[i];
+        }
+        for (uint256 j = 0; j < anon.length; ++j) {
+            // Restamped onto the credential, exactly as linkCredential would attribute it.
+            merged[own.length + j] = StrataTypes.Position({
+                cviRef: cviRef,
+                shares: anon[j].shares,
+                stratumId: anon[j].stratumId
+            });
+        }
     }
 
     // ---------------------------------------------------------------------
