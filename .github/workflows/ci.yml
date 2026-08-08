@@ -40,7 +40,7 @@ jobs:
         env:
           MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL }}
           # Quoted: an unquoted 0x... address parses as a YAML hex int and overflows
-          STRATA_POOL: "0xe747e5adbde5363564e7b2d2c2c3199fae46a64e"
+          STRATA_POOL: "0xa7c457dd7add8e57317ba2b43ea4817f07192dea"
         run: |
           if [ -n "$MONAD_RPC_URL" ]; then
             RUN_FORK=1 forge test --match-contract Fork
@@ -73,4 +73,4 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_MONAD_RPC_URL: https://testnet-rpc.monad.xyz
-          NEXT_PUBLIC_POOL_ADDRESS: "0xe747e5adbde5363564e7b2d2c2c3199fae46a64e"
+          NEXT_PUBLIC_POOL_ADDRESS: "0xa7c457dd7add8e57317ba2b43ea4817f07192dea"

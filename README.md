@@ -9,8 +9,8 @@ Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad t
 ## Live
 
 - **App:** https://strata-monad.vercel.app  (landing + `/dashboard`)
-- **Contract source:** verified on Sourcify — https://repo.sourcify.dev/contracts/full_match/10143/0xE747e5AdBde5363564E7b2D2c2C3199fAe46a64E/
-- **Mandatory wallet transaction, proven live:** `syncStratum(1)` tx `0x9cd91b575d102a77a5f1a1e1b40658493eb43070b4f951646d8421d46218988e` (status 1). This is the exact call the dashboard's "Sync compliance state" button signs from a browser-extension wallet.
+- **Contract source:** verified on Sourcify — https://repo.sourcify.dev/contracts/full_match/10143/0xa7c457dd7add8e57317ba2b43ea4817f07192dea/
+- **Mandatory wallet transaction, proven live:** `syncStratum(1)` tx `0x92bdf770c08c14c2d74b984cd56311f83ce9c312435585dee79b745566359471` (status 1). This is the exact call the dashboard's "Sync compliance state" button signs from a browser-extension wallet.
 
 
 ## The problem
@@ -49,8 +49,8 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 
 | Contract | Address |
 |---|---|
-| **StrataPool** | `0xe747e5adbde5363564e7b2d2c2c3199fae46a64e` |
-| Owner | `0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0` |
+| **StrataPool** | `0xa7c457dd7add8e57317ba2b43ea4817f07192dea` |
+| Owner | `0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389` |
 | Pooled asset — USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
 | Reference **and custodied** — aUSDC (CVA) | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
 | A-Pass (CVI) | `0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9` |
@@ -62,12 +62,12 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 Call it yourself:
 
 ```bash
-cast call 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e "basis(uint8,uint8)(int256)" 1 0 \
+cast call 0xa7c457dd7add8e57317ba2b43ea4817f07192dea "basis(uint8,uint8)(int256)" 1 0 \
   --rpc-url https://testnet-rpc.monad.xyz
 # 225  -> VERIFIED trades 225 bps above OPEN
 
-cast call 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e "policyClears(address)(bool)" \
-  0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0 --rpc-url https://testnet-rpc.monad.xyz
+cast call 0xa7c457dd7add8e57317ba2b43ea4817f07192dea "policyClears(address)(bool)" \
+  0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389 --rpc-url https://testnet-rpc.monad.xyz
 # true
 ```
 
@@ -110,7 +110,7 @@ The result is that compliance sits on the **claim**, while the instrument a clai
 
 ```bash
 forge test                                   # 32 local tests
-RUN_FORK=1 STRATA_POOL=0xe747e5adbde5363564e7b2d2c2c3199fae46a64e \
+RUN_FORK=1 STRATA_POOL=0xa7c457dd7add8e57317ba2b43ea4817f07192dea \
   forge test --match-contract Fork           # 15 tests against live Cleanverse contracts
 ```
 
