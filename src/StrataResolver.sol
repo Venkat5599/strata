@@ -35,10 +35,16 @@ library StrataTypes {
     ///        legal person, a credential is, so a fresh wallet inherits nothing.
     /// @param shares Share quantity in this lot.
     /// @param stratumId Index into the strata array this lot belongs to.
+    /// @param aTokenBacked True when this lot is backed by a Cleanverse A-Token rather than
+    ///        the plain underlying. Two lots can sit in the same stratum and still be backed
+    ///        by different instruments, because what a claim is worth legally and what it is
+    ///        denominated in are separate facts. The resolver ignores this field entirely -
+    ///        it decides legality - and the pool reads it to settle in the right token.
     struct Position {
         bytes32 cviRef;
         uint128 shares;
         uint8 stratumId;
+        bool aTokenBacked;
     }
 
     /// @notice Legal configuration and live state of one stratum.

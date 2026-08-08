@@ -48,6 +48,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     error TooManyLots();
     error DiscountOutOfRange(uint16 discountBps);
     error DepositTooLarge(uint256 assets);
+    error TierTooLowForAToken(uint8 tier, uint8 required);
     error InsufficientShares(uint256 held, uint256 requested);
 
     // ---------------------------------------------------------------------
@@ -69,6 +70,11 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
         uint128 deferred,
         uint8 reason
     );
+
+    /// @notice Emitted when a deposit is made in the Cleanverse A-Token itself.
+    /// @dev Distinct from Deposited because the pool custodies a different instrument.
+    ///      The claim is denominated in the A-Token and settles back in it.
+    event DepositedAToken(bytes32 indexed cviRef, address indexed account, uint128 shares);
 
     /// @notice Emitted when an address that deposited anonymously is later identified.
     /// @dev The prior claim is attributed to the credential that now identifies the same
@@ -110,13 +116,13 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     ///      the restriction onto the claim, which is the entire thesis.
     IERC20 public immutable asset;
 
-    /// @notice The registered A-Token used as the reference instrument for policy queries.
-    /// @dev Cleanverse rules are bound to a registered A-Token: canTransfer reverts with
-    ///      TokenNotRegistered for anything else (verified live against plain USDC). So the
-    ///      pool asks its compliance questions against aUSDC while custodying USDC. The
-    ///      question being asked is about the credential of the party, and the A-Token is the
-    ///      instrument that question is denominated in.
-    IERC20 public immutable complianceRef;
+    /// @notice The registered Cleanverse A-Token (aUSDC).
+    /// @dev Serves two roles. It is the instrument every policy question is denominated in,
+    ///      because Cleanverse rules bind to a registered A-Token and canTransfer reverts
+    ///      TokenNotRegistered for anything else. It is ALSO custodied: depositAToken takes
+    ///      it directly, so VERIFIED claims funded in aUSDC are backed by real aUSDC held by
+    ///      this contract rather than by a plain-token substitute.
+    IERC20 public immutable aToken;
 
     /// @notice The Cleanverse Policy (Validator) contract. The compliance source of truth.
     ICleanversePolicy public immutable policy;
@@ -147,27 +153,27 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     // ---------------------------------------------------------------------
 
     /// @param asset_ The pooled asset (plain USDC on Monad testnet).
-    /// @param complianceRef_ A registered Cleanverse A-Token (aUSDC) used as the reference
+    /// @param aToken_ A registered Cleanverse A-Token (aUSDC) used as the reference
     ///        instrument for every policy query. Not custodied.
     /// @param policy_ The Cleanverse Policy contract.
     /// @param owner_ Initial owner. Must be able to produce the EIP-191 signature that
     ///        Cleanverse /validator/register checks against owner().
-    constructor(IERC20 asset_, IERC20 complianceRef_, ICleanversePolicy policy_, address owner_)
+    constructor(IERC20 asset_, IERC20 aToken_, ICleanversePolicy policy_, address owner_)
         ERC20("STRATA Pooled USDC", "sxUSDC")
         Ownable(owner_)
     {
         if (address(asset_) == address(0) || address(policy_) == address(0)) revert ZeroAddress();
-        if (address(complianceRef_) == address(0)) revert ZeroAddress();
+        if (address(aToken_) == address(0)) revert ZeroAddress();
 
         // Fail at construction rather than at the first withdrawal. An unregistered reference
         // makes every canTransfer call revert with TokenNotRegistered, which would present as
         // a mysterious runtime failure instead of a deployment mistake.
-        if (!policy_.isTokenRegistered(address(complianceRef_))) {
-            revert AssetNotRegisteredWithPolicy(address(complianceRef_));
+        if (!policy_.isTokenRegistered(address(aToken_))) {
+            revert AssetNotRegisteredWithPolicy(address(aToken_));
         }
 
         asset = asset_;
-        complianceRef = complianceRef_;
+        aToken = aToken_;
         policy = policy_;
         apass = IAPass(policy_.apass());
 
@@ -226,7 +232,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     ///         model anyway: a redemption burns shares and releases the underlying, so it is
     ///         a burn-side movement rather than a peer-to-peer transfer.
     function policyClears(address account) public view returns (bool) {
-        try policy.canTransfer(address(complianceRef), address(0), account, 1) returns (bool ok) {
+        try policy.canTransfer(address(aToken), address(0), account, 1) returns (bool ok) {
             return ok;
         } catch {
             return false;
@@ -235,7 +241,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
     /// @notice Whether the Policy reports `account` frozen for this asset.
     function isFrozen(address account) public view returns (bool) {
-        try policy.isFrozen(address(complianceRef), account) returns (bool f) {
+        try policy.isFrozen(address(aToken), account) returns (bool f) {
             return f;
         } catch {
             // A registry that cannot answer is treated as a freeze. Failing closed is the
@@ -270,7 +276,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
         for (uint256 i = 0; i < n; ++i) {
             if (from[i].shares == 0) continue;
-            _creditLot(currentRef, from[i].shares, from[i].stratumId);
+            _creditLot(currentRef, from[i].shares, from[i].stratumId, from[i].aTokenBacked);
             from[i].shares = 0;
         }
 
@@ -308,7 +314,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
         uint8 stratumId = tier >= _strata[STRATUM_VERIFIED].minTier ? STRATUM_VERIFIED : STRATUM_OPEN;
 
         shares = assets;
-        _creditLot(cviRef, shares128, stratumId);
+        _creditLot(cviRef, shares128, stratumId, false);
         _mint(msg.sender, shares);
 
         asset.safeTransferFrom(msg.sender, address(this), assets);
@@ -316,18 +322,68 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
         emit Deposited(cviRef, msg.sender, stratumId, shares128);
     }
 
-    /// @dev Merges into an existing lot for the same stratum so the lot array stays bounded.
-    function _creditLot(bytes32 cviRef, uint128 shares, uint8 stratumId) internal {
+    /// @dev Merges into an existing lot with the same stratum AND the same backing, so the
+    ///      lot array stays bounded. Backing is part of the key: two lots can sit in one
+    ///      stratum and still be denominated in different instruments, and merging them would
+    ///      lose the information needed to settle each in the token it was funded with.
+    function _creditLot(bytes32 cviRef, uint128 shares, uint8 stratumId, bool aTokenBacked)
+        internal
+    {
         StrataTypes.Position[] storage lots = _lots[cviRef];
         uint256 n = lots.length;
         for (uint256 i = 0; i < n; ++i) {
-            if (lots[i].stratumId == stratumId) {
+            if (lots[i].stratumId == stratumId && lots[i].aTokenBacked == aTokenBacked) {
                 lots[i].shares += shares;
                 return;
             }
         }
         if (n >= MAX_LOTS_PER_CREDENTIAL) revert TooManyLots();
-        lots.push(StrataTypes.Position({cviRef: cviRef, shares: shares, stratumId: stratumId}));
+        lots.push(
+            StrataTypes.Position({
+                cviRef: cviRef,
+                shares: shares,
+                stratumId: stratumId,
+                aTokenBacked: aTokenBacked
+            })
+        );
+    }
+
+    /// @notice Deposit the Cleanverse A-Token itself and receive shares backed by it.
+    /// @return shares Shares minted.
+    ///
+    /// @dev This is real CVA custody: the pool holds aUSDC, it does not merely reference it.
+    ///
+    ///      No wrapping gateway is involved, and none is needed. An A-Token already enforces
+    ///      compliance on every transfer and refuses either party without an A-Pass, so a
+    ///      party holding aUSDC is by construction credentialled. The only thing standing in
+    ///      the way was the pool itself: a contract with no credential cannot receive an
+    ///      A-Token at all. The deployed pool holds its own A-Pass, which is what makes this
+    ///      function callable.
+    ///
+    ///      The transfer therefore carries its own enforcement. If the depositor loses their
+    ///      credential between approving and calling, the A-Token reverts on its own terms -
+    ///      the pool does not re-check what the instrument already checks.
+    function depositAToken(uint256 amount) external nonReentrant returns (uint256 shares) {
+        if (amount == 0) revert ZeroAmount();
+        if (amount > type(uint128).max) revert DepositTooLarge(amount);
+
+        linkCredential();
+        (bytes32 cviRef, uint8 tier) = credentialOf(msg.sender);
+
+        uint8 required = _strata[STRATUM_VERIFIED].minTier;
+        if (tier < required) revert TierTooLowForAToken(tier, required);
+
+        // casting to 'uint128' is safe because the bound above rejects anything larger
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint128 shares128 = uint128(amount);
+        shares = amount;
+
+        _creditLot(cviRef, shares128, STRATUM_VERIFIED, true);
+        _mint(msg.sender, shares);
+
+        aToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit DepositedAToken(cviRef, msg.sender, shares128);
     }
 
     // ---------------------------------------------------------------------
@@ -386,15 +442,24 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
         }
 
         // Effects before interactions: lots debited and shares burned before any transfer.
-        _debitLots(cviRef, v, plan.burnable);
+        (uint128 fromAsset, uint128 fromAToken) = _debitLots(cviRef, v, plan.burnable);
         _burn(msg.sender, plan.burnable);
-        asset.safeTransfer(msg.sender, plan.burnable);
+
+        // Each lot settles in the instrument it was funded with. Paying an A-Token claim in
+        // the plain underlying would quietly strip the compliance properties the holder
+        // deposited for, and paying the reverse would hand an A-Token to a party who may not
+        // legally hold one.
+        if (fromAsset > 0) asset.safeTransfer(msg.sender, fromAsset);
+        if (fromAToken > 0) aToken.safeTransfer(msg.sender, fromAToken);
     }
 
     /// @dev Consumes lots in the same order the resolver used to plan them: unlocked before
     ///      locked, skipping anything that does not clear. Keeping the two in step is what
     ///      makes the settled amount match the planned amount exactly.
-    function _debitLots(bytes32 cviRef, StrataTypes.RedeemerView memory v, uint128 amount) internal {
+    function _debitLots(bytes32 cviRef, StrataTypes.RedeemerView memory v, uint128 amount)
+        internal
+        returns (uint128 fromAsset, uint128 fromAToken)
+    {
         StrataTypes.Position[] storage lots = _lots[cviRef];
 
         for (uint256 pass = 0; pass < 2 && amount > 0; ++pass) {
@@ -416,6 +481,12 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
                 uint128 take = p.shares < amount ? p.shares : amount;
                 p.shares -= take;
                 amount -= take;
+
+                if (p.aTokenBacked) {
+                    fromAToken += take;
+                } else {
+                    fromAsset += take;
+                }
             }
         }
     }
@@ -463,7 +534,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     ///      a credential revocation is a compliance decision, so it lives behind the owner.
     function syncStratum(uint8 stratumId) external {
         if (stratumId >= _strata.length) revert UnknownStratum(stratumId);
-        _setBlocked(stratumId, policy.isPaused(address(complianceRef)), StrataTypes.REASON_POLICY);
+        _setBlocked(stratumId, policy.isPaused(address(aToken)), StrataTypes.REASON_POLICY);
     }
 
     /// @notice Block or unblock a stratum as a compliance action.
@@ -579,7 +650,8 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
             merged[own.length + j] = StrataTypes.Position({
                 cviRef: cviRef,
                 shares: anon[j].shares,
-                stratumId: anon[j].stratumId
+                stratumId: anon[j].stratumId,
+                aTokenBacked: anon[j].aTokenBacked
             });
         }
     }

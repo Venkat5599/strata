@@ -42,7 +42,7 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 
 | Contract | Address |
 |---|---|
-| **StrataPool** | `0xf082bfbd675280147d85aedfc5984b667aec099a` |
+| **StrataPool** | `0xe747e5adbde5363564e7b2d2c2c3199fae46a64e` |
 | Owner | `0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0` |
 | Pooled asset — USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
 | Compliance reference — aUSDC (CVA) | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
@@ -55,11 +55,11 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 Call it yourself:
 
 ```bash
-cast call 0xf082bfbd675280147d85aedfc5984b667aec099a "basis(uint8,uint8)(int256)" 1 0 \
+cast call 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e "basis(uint8,uint8)(int256)" 1 0 \
   --rpc-url https://testnet-rpc.monad.xyz
 # 225  -> VERIFIED trades 225 bps above OPEN
 
-cast call 0xf082bfbd675280147d85aedfc5984b667aec099a "policyClears(address)(bool)" \
+cast call 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e "policyClears(address)(bool)" \
   0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0 --rpc-url https://testnet-rpc.monad.xyz
 # true
 ```

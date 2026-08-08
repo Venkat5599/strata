@@ -69,7 +69,8 @@ contract StrataResolverTest is Test {
                 // Mix in a foreign credential so the "only your own claim" rule is exercised.
                 cviRef: ((w >> 32) & 3) == 0 ? BOB : ALICE,
                 shares: uint128(w % 1_000_000e6),
-                stratumId: uint8((w >> 24) % (sc + 1)) // deliberately allows an out-of-range id
+                stratumId: uint8((w >> 24) % (sc + 1)), // deliberately allows an out-of-range id
+                aTokenBacked: ((w >> 40) & 1) == 1
             });
         }
     }
@@ -266,8 +267,8 @@ contract StrataResolverTest is Test {
         s[1] = StrataTypes.StratumState({minTier: 20, lockUntil: 0, blocked: false}); // VERIFIED
 
         StrataTypes.Position[] memory p = new StrataTypes.Position[](2);
-        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 58e6, stratumId: 0});
-        p[1] = StrataTypes.Position({cviRef: ALICE, shares: 42e6, stratumId: 1});
+        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 58e6, stratumId: 0, aTokenBacked: false});
+        p[1] = StrataTypes.Position({cviRef: ALICE, shares: 42e6, stratumId: 1, aTokenBacked: false});
 
         // An unverified LP: no tier, so the VERIFIED stratum is closed to them.
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
@@ -292,7 +293,7 @@ contract StrataResolverTest is Test {
         s[0] = StrataTypes.StratumState({minTier: 20, lockUntil: 0, blocked: false});
 
         StrataTypes.Position[] memory p = new StrataTypes.Position[](1);
-        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 100e6, stratumId: 0});
+        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 100e6, stratumId: 0, aTokenBacked: false});
 
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
             cviRef: ALICE,
@@ -324,8 +325,8 @@ contract StrataResolverTest is Test {
 
         // The locked lot is listed first, so array order alone would pick it.
         StrataTypes.Position[] memory p = new StrataTypes.Position[](2);
-        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 50e6, stratumId: 0});
-        p[1] = StrataTypes.Position({cviRef: ALICE, shares: 50e6, stratumId: 1});
+        p[0] = StrataTypes.Position({cviRef: ALICE, shares: 50e6, stratumId: 0, aTokenBacked: false});
+        p[1] = StrataTypes.Position({cviRef: ALICE, shares: 50e6, stratumId: 1, aTokenBacked: false});
 
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
             cviRef: ALICE,

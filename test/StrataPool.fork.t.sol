@@ -192,6 +192,117 @@ contract StrataPoolForkTest is Test {
         assertEq(plan.deferred, amount, "the whole claim defers to compliant liquidation");
     }
 
+    // ---------------------------------------------------------------------
+    // CVA custody - the pool holds the A-Token itself
+    // ---------------------------------------------------------------------
+
+    /// @dev The pool to exercise for A-Token custody. It MUST be the deployed instance: a
+    ///      freshly constructed pool holds no A-Pass, and an A-Token refuses to move to a
+    ///      party without one. That is not a limitation of the test, it is the compliance
+    ///      rule the whole design rests on, so the test honours it rather than working
+    ///      around it. Returns address(0) when STRATA_POOL is unset, and the caller skips.
+    function _deployedPool() internal view returns (StrataPool) {
+        return StrataPool(vm.envOr("STRATA_POOL", address(0)));
+    }
+
+    /// @notice The DEPLOYED pool holds its own A-Pass, so it may legally receive aUSDC.
+    /// @dev This is what makes A-Token custody possible at all. An A-Token refuses both
+    ///      parties without a credential, so a contract with no A-Pass cannot receive one -
+    ///      no amount of contract code works around that. The credential was minted to the
+    ///      pool address through POST /generate_apass.
+    ///
+    ///      Set STRATA_POOL to the deployed address to run this against the live deployment.
+    function test_fork_deployedPoolIsCredentialled() public view {
+        address deployed = vm.envOr("STRATA_POOL", address(0));
+        if (deployed == address(0)) return;
+
+        assertEq(apass.balanceOf(deployed), 1, "the deployed pool must hold an A-Pass");
+        assertTrue(
+            policy.canTransfer(AUSDC, REAL_HOLDER, deployed, 1e6),
+            "a credentialled holder must be able to send aUSDC to the pool"
+        );
+    }
+
+    /// @notice A verified LP deposits the A-Token itself, and the pool custodies real aUSDC.
+    /// @dev The distinction that matters for the integration: before this, aUSDC was only the
+    ///      instrument policy questions were denominated in. Here the pool actually holds it.
+    ///
+    ///      No wrapping gateway is involved. AccessCore gates wrapping behind a deposit
+    ///      membership only Cleanverse can grant, and the institution faucet is empty - but
+    ///      neither matters, because a party holding aUSDC is already credentialled by
+    ///      construction and can simply deposit it.
+    function test_fork_aTokenDepositIsCustodiedAsAToken() public {
+        StrataPool live = _deployedPool();
+        if (address(live) == address(0)) return;
+
+        uint256 amount = 4e6; // 4 aUSDC
+        deal(AUSDC, REAL_HOLDER, amount);
+
+        uint256 poolBefore = ausdc.balanceOf(address(live));
+
+        vm.startPrank(REAL_HOLDER);
+        ausdc.approve(address(live), type(uint256).max);
+        live.depositAToken(amount);
+        vm.stopPrank();
+
+        assertEq(
+            ausdc.balanceOf(address(live)) - poolBefore,
+            amount,
+            "the pool must hold real aUSDC, not a plain-token substitute"
+        );
+
+        (bytes32 ref,) = live.credentialOf(REAL_HOLDER);
+        StrataTypes.Position[] memory lots = live.lotsOf(ref);
+        assertTrue(lots.length >= 1, "at least one lot");
+        bool sawBacked;
+        for (uint256 i = 0; i < lots.length; ++i) {
+            if (lots[i].aTokenBacked) {
+                sawBacked = true;
+                assertEq(lots[i].stratumId, live.STRATUM_VERIFIED(), "A-Token deposits are VERIFIED");
+            }
+        }
+        assertTrue(sawBacked, "the lot must record that it is A-Token backed");
+    }
+
+    /// @notice An A-Token claim settles back in the A-Token, not in the plain underlying.
+    /// @dev Paying an aUSDC claim in USDC would quietly strip the compliance properties the
+    ///      holder deposited for. The lot records its backing precisely so settlement can
+    ///      honour it.
+    function test_fork_aTokenClaimSettlesInAToken() public {
+        StrataPool live = _deployedPool();
+        if (address(live) == address(0)) return;
+
+        uint256 amount = 4e6;
+        deal(AUSDC, REAL_HOLDER, amount);
+
+        vm.startPrank(REAL_HOLDER);
+        ausdc.approve(address(live), type(uint256).max);
+        live.depositAToken(amount);
+        vm.stopPrank();
+
+        uint256 aBefore = ausdc.balanceOf(REAL_HOLDER);
+        uint256 uBefore = usdc.balanceOf(REAL_HOLDER);
+
+        vm.prank(REAL_HOLDER);
+        StrataTypes.ExitPlan memory plan = live.withdraw(uint128(amount));
+
+        assertEq(uint8(plan.branch), uint8(StrataTypes.Branch.Direct), "a cleared holder exits Direct");
+        assertEq(ausdc.balanceOf(REAL_HOLDER) - aBefore, amount, "paid back in aUSDC");
+        assertEq(usdc.balanceOf(REAL_HOLDER), uBefore, "and not a unit of plain USDC");
+    }
+
+    /// @notice A party with no credential cannot deposit the A-Token.
+    /// @dev Enforced twice over, which is the correct shape: the pool checks the tier, and
+    ///      the A-Token itself would refuse the transfer regardless.
+    function test_fork_uncredentialledPartyCannotDepositAToken() public {
+        StrataPool live = _deployedPool();
+        if (address(live) == address(0)) return;
+
+        vm.prank(NO_PASS);
+        vm.expectRevert();
+        live.depositAToken(1e6);
+    }
+
     /// @notice The compliance basis is readable on a live deployment.
     function test_fork_basisIsReadable() public view {
         int256 b = pool.basis(pool.STRATUM_VERIFIED(), pool.STRATUM_OPEN());
