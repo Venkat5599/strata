@@ -1,0 +1,13 @@
+{
+  "name": "strata",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cv:apass": "node scripts/mint-apass.mjs",
+    "cv:register": "node scripts/register-validator.mjs",
+    "cv:audit": "node scripts/ccp-audit.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}
