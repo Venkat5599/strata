@@ -195,8 +195,18 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     /// @dev canTransfer reverts rather than returning false when a party holds no A-Pass
     ///      (verified live on Monad testnet). Mapping that revert to `false` is what converts
     ///      a hard failure into a graded outcome, which is the contribution of this project.
+    /// @dev The counterparty passed as `from` is the zero address, not this pool. Two reasons,
+    ///      both learned from probing the live contract:
+    ///
+    ///      1. canTransfer validates BOTH parties symmetrically. Passing the pool would make
+    ///         the answer depend on whether the pool itself holds an A-Pass, so every redeemer
+    ///         would read as non-clearing until the pool were separately credentialled. The
+    ///         question being asked here is about the redeemer, not about the venue.
+    ///      2. The zero address is exempt on both sides (verified live), which is the correct
+    ///         model anyway: a redemption burns shares and releases the underlying, so it is
+    ///         a burn-side movement rather than a peer-to-peer transfer.
     function policyClears(address account) public view returns (bool) {
-        try policy.canTransfer(address(asset), address(this), account, 1) returns (bool ok) {
+        try policy.canTransfer(address(asset), address(0), account, 1) returns (bool ok) {
             return ok;
         } catch {
             return false;
