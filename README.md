@@ -6,6 +6,13 @@ Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad t
 
 ---
 
+## Live
+
+- **App:** https://strata-monad.vercel.app  (landing + `/dashboard`)
+- **Contract source:** verified on Sourcify — https://repo.sourcify.dev/contracts/full_match/10143/0xE747e5AdBde5363564E7b2D2c2C3199fAe46a64E/
+- **Mandatory wallet transaction, proven live:** `syncStratum(1)` tx `0x9cd91b575d102a77a5f1a1e1b40658493eb43070b4f951646d8421d46218988e` (status 1). This is the exact call the dashboard's "Sync compliance state" button signs from a browser-extension wallet.
+
+
 ## The problem
 
 A liquidity pool socializes ownership: one asset balance, many claimants. If a single LP is unverified, sanctioned, or in the wrong jurisdiction, the pool's holdings are non-compliant **in aggregate**.
