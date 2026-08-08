@@ -5,9 +5,9 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {StrataPool} from "../src/StrataPool.sol";
-import {StrataTypes} from "../src/StrataResolver.sol";
-import {ICleanversePolicy} from "../src/interfaces/ICleanversePolicy.sol";
+import {StrataPool} from "../contracts/StrataPool.sol";
+import {StrataTypes} from "../contracts/StrataResolver.sol";
+import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
 
 /// @notice Six-decimal stand-in for aUSDC.
 contract MockAToken is ERC20 {

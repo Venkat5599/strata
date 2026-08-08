@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Test} from "forge-std/Test.sol";
-import {StrataResolver, StrataTypes} from "../src/StrataResolver.sol";
+import {StrataResolver, StrataTypes} from "../contracts/StrataResolver.sol";
 
 /// @notice Thin external wrapper so the pure library can be fuzzed through a call boundary.
 contract ResolverHarness {

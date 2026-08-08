@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 import {Script, console} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {StrataPool} from "../src/StrataPool.sol";
-import {ICleanversePolicy} from "../src/interfaces/ICleanversePolicy.sol";
+import {StrataPool} from "../contracts/StrataPool.sol";
+import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
 
 /// @notice Deploys StrataPool to Monad testnet against the live Cleanverse contracts.
 /// @dev forge script script/Deploy.s.sol --rpc-url $MONAD_RPC_URL --broadcast

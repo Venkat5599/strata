@@ -171,15 +171,17 @@ Server routes keep `CLEANVERSE_API_KEY` out of the browser bundle, which is the 
 ## Layout
 
 ```
-src/StrataResolver.sol           pure library - the contribution
-src/StrataPool.sol               Ownable, ERC-20 shares, position-scoped compliance
-src/interfaces/                  Cleanverse ABIs, hand-written from live bytecode
+contracts/                       Solidity sources
+  StrataResolver.sol             pure library - the contribution
+  StrataPool.sol                 Ownable, ERC-20 shares, position-scoped compliance
+  interfaces/                    Cleanverse ABIs, hand-written from live bytecode
 test/                            resolver fuzz, pool, audit regressions, fork
-script/Deploy.s.sol              Monad testnet deployment
-scripts/cleanverse.mjs           cooperate API client (AES-CBC + plain JSON)
-scripts/mint-apass.mjs           mint a CVI credential
-scripts/register-validator.mjs   register the pool with Cleanverse
+deploy/Deploy.s.sol              Monad testnet deployment
+tools/cleanverse.mjs             cooperate API client (AES-CBC + plain JSON)
+tools/mint-apass.mjs             mint a CVI credential
+tools/register-validator.mjs     register the pool with Cleanverse
 web/                             Next.js stratum ledger
+docs/                            PRD, architecture, submission summary
 ```
 
 ## Post-hackathon

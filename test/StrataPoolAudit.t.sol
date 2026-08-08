@@ -4,9 +4,9 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {StrataPool} from "../src/StrataPool.sol";
-import {StrataTypes} from "../src/StrataResolver.sol";
-import {ICleanversePolicy} from "../src/interfaces/ICleanversePolicy.sol";
+import {StrataPool} from "../contracts/StrataPool.sol";
+import {StrataTypes} from "../contracts/StrataResolver.sol";
+import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
 import {MockAToken, MockAPass, MockPolicy} from "./StrataPool.t.sol";
 
 /// @title StrataPoolAuditTest

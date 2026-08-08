@@ -4,10 +4,10 @@ pragma solidity 0.8.28;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {StrataPool} from "../src/StrataPool.sol";
-import {StrataTypes} from "../src/StrataResolver.sol";
-import {ICleanversePolicy} from "../src/interfaces/ICleanversePolicy.sol";
-import {IAPass} from "../src/interfaces/IAPass.sol";
+import {StrataPool} from "../contracts/StrataPool.sol";
+import {StrataTypes} from "../contracts/StrataResolver.sol";
+import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
+import {IAPass} from "../contracts/interfaces/IAPass.sol";
 
 /// @title StrataPoolForkTest
 /// @notice Runs STRATA against the REAL deployed Cleanverse contracts on Monad testnet.

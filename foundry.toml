@@ -1,7 +1,8 @@
 [profile.default]
-src = "src"
+src = "contracts"
 out = "out"
 libs = ["lib"]
+script = "deploy"
 solc = "0.8.28"
 evm_version = "cancun"
 optimizer = true
