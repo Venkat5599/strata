@@ -38,7 +38,7 @@ export default function Landing() {
 
       <header className="ef-hero">
         <div className="ef-hero-l">
-          <h1 className="ef-h1" data-sr>Your Liquidity<br />Stays Compliant</h1>
+          <h1 className="ef-h1" data-sr="rise">Your Liquidity<br />Stays Compliant</h1>
           <p className="ef-sub" data-sr><span className="mark">An exit is graded, not refused.</span></p>
           <p className="ef-sub-body" data-sr>
             STRATA moves the compliance boundary from the pool to the position, so one balance and
@@ -73,7 +73,7 @@ export default function Landing() {
       </section>
 
       <section className="ef-products" id="products">
-        <h2 className="ef-h2" data-sr>Two outcomes for one request.</h2>
+        <h2 className="ef-h2" data-sr="rise">Two outcomes for one request.</h2>
         <p className="ef-lead" data-sr>A withdrawal is no longer pass or revert. It is graded, and every grade is explicable.</p>
         <div className="ef-cards">
           <div className="ef-card" data-sr>
@@ -102,7 +102,7 @@ export default function Landing() {
       </section>
 
       <section className="ef-steps" id="steps">
-        <h2 className="ef-h2 light" data-sr>A clear path to a compliant exit.</h2>
+        <h2 className="ef-h2 light" data-sr="rise">A clear path to a compliant exit.</h2>
         <div className="ef-steps-grid">
           {[
             ["01", "Deposit", "Shares are stamped with the depositor credential at issuance."],
@@ -122,7 +122,7 @@ export default function Landing() {
       </section>
 
       <section className="ef-support" id="support">
-        <h2 className="ef-h2 light center" data-sr>Who it serves</h2>
+        <h2 className="ef-h2 light center" data-sr="rise">Who it serves</h2>
         <div className="ef-support-grid">
           <div className="ef-scard" data-sr>
             <div className="ef-icon" aria-hidden="true">
@@ -149,7 +149,7 @@ export default function Landing() {
       </section>
 
       <section className="ef-chains" id="chains">
-        <h2 className="ef-h2 center" data-sr>Deployed and registered on Monad testnet.</h2>
+        <h2 className="ef-h2 center" data-sr="rise">Deployed and registered on Monad testnet.</h2>
         <div className="ef-addr-list">
           {[["StrataPool", POOL_ADDRESS], ["aUSDC / CVA", CLEANVERSE.ausdc], ["A-Pass / CVI", CLEANVERSE.apass], ["Policy", CLEANVERSE.policy]].map(([l, a]) => (
             <a key={l} data-sr className="ef-addr" href={EXPLORER_ADDR(a as string)} target="_blank" rel="noreferrer">
@@ -160,7 +160,7 @@ export default function Landing() {
       </section>
 
       <footer className="ef-footer">
-        <div className="ef-foot-word" data-sr>STRATA</div>
+        <div className="ef-foot-word" data-sr="rise">STRATA</div>
         <div className="ef-foot-meta">
           <span>Cleanverse Build: Trusted Assets / DeFi track</span>
           <a href="https://github.com/Venkat5599/strata" target="_blank" rel="noreferrer">github.com/Venkat5599/strata</a>

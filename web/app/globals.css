@@ -819,3 +819,34 @@ html[data-sr-ready] [data-sr].sr-in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   html[data-sr-ready] [data-sr] { opacity: 1 !important; transform: none !important; }
 }
+
+
+/* ============================================================
+   AWWWARDS-STYLE MASKED RISE
+   Headings sweep up from behind a clip line as they enter view.
+   Content-safe: only active under html[data-sr-ready]; without JS, unsupported
+   observer, or reduced-motion, everything is fully visible.
+   ============================================================ */
+
+html[data-sr-ready] [data-sr] {
+  transform: translateY(52px);
+  transition: opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-sr-ready] [data-sr="rise"] {
+  opacity: 1;
+  clip-path: inset(0 0 106% 0);
+  transform: translateY(40px);
+  transition: clip-path 1050ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1050ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: clip-path, transform;
+}
+html[data-sr-ready] [data-sr="rise"].sr-in {
+  clip-path: inset(-8% 0 -12% 0);
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-sr-ready] [data-sr="rise"] { clip-path: none !important; transform: none !important; }
+}
