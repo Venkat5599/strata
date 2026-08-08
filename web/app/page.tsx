@@ -52,7 +52,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="ef-hero-r" aria-hidden="true">
-          <div className="ef-artcard px" data-sr data-px data-px-speed="0.12">
+          <div className="ef-artcard px" data-px data-px-speed="0.16">
             <div className="art-ticks">
               <div className="art-tick" style={{left: "29%"}}><span>97.50</span><i>OPEN</i></div>
               <div className="art-tick verified" style={{left: "79%"}}><span>99.75</span><i>VERIFIED</i></div>

@@ -26,7 +26,9 @@ export function Parallax() {
         const speed = parseFloat(el.dataset.pxSpeed || "0.08");
         const r = el.getBoundingClientRect();
         const progress = (r.top + r.height / 2 - vh / 2) / vh;
-        el.style.setProperty("--px", `${(-progress * speed * 100).toFixed(1)}px`);
+        // amplitude tuned so a 0.1 speed drifts ~40px across the viewport -
+        // clearly visible, not the near-imperceptible 12px of the first pass.
+        el.style.setProperty("--px", `${(-progress * speed * 420).toFixed(1)}px`);
       }
       raf = requestAnimationFrame(tick);
     };
