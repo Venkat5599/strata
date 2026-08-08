@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#16130F"/>
+
+  <!-- strata: one pool, partitioned. width encodes share, tone encodes legal state -->
+  <g stroke-linecap="round" stroke-width="46" fill="none">
+    <!-- verified stratum -->
+    <line x1="97" y1="164" x2="415" y2="164" stroke="#E08B2F"/>
+    <!-- open stratum -->
+    <line x1="97" y1="256" x2="341" y2="256" stroke="#E6DDCE"/>
+    <!-- blocked stratum: dimmed, short -->
+    <line x1="97" y1="348" x2="235" y2="348" stroke="#5A5148"/>
+  </g>
+
+  <!-- basis bracket: the price gap between strata -->
+  <g stroke="#E08B2F" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.85">
+    <line x1="443" y1="150" x2="443" y2="362"/>
+    <line x1="443" y1="150" x2="424" y2="150"/>
+    <line x1="443" y1="362" x2="424" y2="362"/>
+  </g>
+</svg>

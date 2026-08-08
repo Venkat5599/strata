@@ -1,0 +1,19 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# foundry
+out/
+cache/
+broadcast/*/dry-run/
+docs/
+
+# node
+node_modules/
+web/dist/
+web/.vite/
+
+# local scratch
+cleanverse-docs.txt
+.playwright-mcp/
