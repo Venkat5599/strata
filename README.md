@@ -45,7 +45,7 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 | **StrataPool** | `0xe747e5adbde5363564e7b2d2c2c3199fae46a64e` |
 | Owner | `0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0` |
 | Pooled asset — USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
-| Compliance reference — aUSDC (CVA) | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
+| Reference **and custodied** — aUSDC (CVA) | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
 | A-Pass (CVI) | `0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9` |
 | Cleanverse Policy | `0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd` |
 | Cleanverse Validator | `0xaC7e5179C2C7f03f209136886c172eb34F161792` |
@@ -74,22 +74,28 @@ Not adjacent to the protocol — the protocol reads them synchronously, on-chain
 |---|---|---|
 | **CVI (A-Pass)** | `credentialOf()` reads the on-chain ERC-721 credential and derives `cviRef`. Positions key on the **credential**, never on `msg.sender` — an address is not a legal person, a credential is, so a fresh wallet inherits nothing. | A-Pass minted via `POST /generate_apass` (tier 50, tx `0x80db3087…`), then confirmed on-chain: `balanceOf(deployer) == 1` |
 | **CVI (Policy)** | `policyClears()` calls `Policy.canTransfer` and maps its revert to `false`. `isFrozen()` supplies the revocation signal driving the `Blocked` branch. | Fork tests assert both the revert and the success path against the live contract |
-| **CVA (A-Token)** | aUSDC is the registered instrument every policy question is denominated in. Cleanverse rules bind to a registered A-Token — `canTransfer` reverts `TokenNotRegistered` for anything else. Checked at construction, so a misconfigured deploy fails immediately rather than at the first withdrawal. | `isTokenRegistered(aUSDC) == true`, and the constructor rejects plain USDC as a reference |
+| **CVA (A-Token) — referenced** | aUSDC is the registered instrument every policy question is denominated in. Cleanverse rules bind to a registered A-Token — `canTransfer` reverts `TokenNotRegistered` for anything else. Checked at construction. | `isTokenRegistered(aUSDC) == true`; the constructor rejects plain USDC |
+| **CVA (A-Token) — custodied** | `depositAToken()` takes aUSDC directly. The pool **holds real aUSDC**, and lots record their backing so an A-Token claim settles back in the A-Token rather than a plain-token substitute. | Fork tests deposit and redeem aUSDC against the live deployment |
+| **CVI — pool credential** | The pool holds **its own A-Pass**, minted through the same `/generate_apass` path a user takes. Without one, no contract can receive an A-Token at all. | `A-Pass.balanceOf(pool) == 1`, tx `0xfea66697...` |
 | **CCP** | `/api/ccp/export` produces a downloadable audit record combining pool state with the live credential record. | Server route; api-key never reaches the browser |
 | **Validator** | The pool is registered through the **write** path with an EIP-191 owner signature verified against the on-chain `owner()`. | `register` tx `0xfba1314b…`, `is_register: true` |
 
-### Why the pool holds USDC and not aUSDC
+### Why the pool takes both USDC and aUSDC
 
-This was a design error caught by a fork test, and it is worth stating plainly because it is the kind of thing mocks cannot find.
+A fork test caught a design error worth stating plainly, because it is the kind of thing mocks cannot find.
 
-The pool originally custodied aUSDC. Running against the real contracts showed that **an A-Token enforces compliance on every transfer and refuses both parties without an A-Pass**. Two consequences followed, the second fatal:
+The pool originally custodied **only** aUSDC. Against the real contracts, an A-Token turned out to enforce compliance on every transfer and refuse both parties without an A-Pass. Two consequences followed, the second fatal:
 
 1. the pool contract itself could not receive aUSDC
 2. an uncredentialled LP could not hold aUSDC **at all**
 
-If an unverified party cannot acquire the pooled asset, they never reach the resolver, and a position-level design silently collapses back into the pool-level gate it exists to replace. The demo's central beat was unreachable.
+If an unverified party cannot acquire the pooled asset, they never reach the resolver, and a position-level design silently collapses back into the pool-level gate it exists to replace.
 
-The pool now custodies plain USDC — freely holdable by anyone — and keeps aUSDC as the reference instrument for policy queries. Compliance moves onto the **claim** rather than the token, which is what the thesis said all along.
+So the pool takes **plain USDC**, which anyone may hold. That is what keeps the OPEN stratum reachable and the central demo beat alive.
+
+It also takes **aUSDC directly**, through `depositAToken()`, and that path needs no wrapping gateway. AccessCore gates wrapping behind a deposit membership only Cleanverse can grant - `isDepositMember` returns false for us and `owner()` is theirs - and the institution faucet is empty for `usdc`, `ausdc` and `usdt` alike. Neither mattered: **anyone holding aUSDC is already credentialled by construction**, so they can simply deposit it. The only thing blocking that was the pool itself, since a contract without a credential cannot receive an A-Token. The pool was therefore given its own A-Pass, through the same CVI path a user takes.
+
+The result is that compliance sits on the **claim**, while the instrument a claim is denominated in is recorded per lot. What a claim is worth legally and what it is denominated in are separate facts, and the contract keeps them separate.
 
 ---
 
@@ -97,17 +103,18 @@ The pool now custodies plain USDC — freely holdable by anyone — and keeps aU
 
 ```bash
 forge test                                   # 32 local tests
-RUN_FORK=1 forge test --match-contract Fork  # 11 tests against live Cleanverse contracts
+RUN_FORK=1 STRATA_POOL=0xe747e5adbde5363564e7b2d2c2c3199fae46a64e \
+  forge test --match-contract Fork           # 15 tests against live Cleanverse contracts
 ```
 
-**43 tests, 0 failures.**
+**47 tests, 0 failures.**
 
 | Suite | Count | What it proves |
 |---|---|---|
 | `StrataResolver.t.sol` | 11 | The four invariants at 10 000 fuzz runs each |
 | `StrataPool.t.sol` | 12 | Deposit, graded exit, revocation, pricing |
 | `StrataPoolAudit.t.sol` | 9 | One regression per audit finding, plus a solvency invariant |
-| `StrataPool.fork.t.sol` | 11 | The same behaviour against the **real** Policy, A-Pass and tokens |
+| `StrataPool.fork.t.sol` | 15 | The same behaviour against the **real** Policy, A-Pass and tokens, including live aUSDC custody |
 
 The resolver invariants are the correctness argument:
 
@@ -154,7 +161,8 @@ Server routes keep `CLEANVERSE_API_KEY` out of the browser bundle, which is the 
 - **Partial exit has no legal precedent.** Splitting a redemption by the legal status of each lot is a proposal, not settled practice.
 - **Discount factors are governance-set.** The contribution is exposing the spread as a first-class on-chain value, not discovering its market-clearing level. Market-discovered pricing is the post-hackathon matching market.
 - **Shares are non-transferable.** A transferable share would let a blocked holder sell the claim to a clean wallet and exit through it. Secondary transfer of stratified claims needs its own compliance path.
-- **Live deposits need testnet USDC.** The Cleanverse institution faucet returned `transfer amount exceeds balance` for `usdc`, `ausdc` and `usdt` at the time of writing — its wallet is empty. The full deposit/withdraw path is therefore proven by the fork suite, which exercises the real Policy and A-Pass contracts with synthesized balances at the same addresses.
+- **Live deposits need testnet balances.** The Cleanverse institution faucet returned `transfer amount exceeds balance` for `usdc`, `ausdc` and `usdt` at the time of writing - its wallet is empty. The deposit and withdraw paths, aUSDC custody included, are therefore proven by the fork suite against the live deployment with synthesized balances.
+- **AccessCore wrapping is out of reach.** Converting USDC into aUSDC through AccessCore needs a deposit membership only Cleanverse can grant (`isDepositMember` false; `owner()` is theirs). STRATA does not need it, because verified parties deposit aUSDC they already hold, but a production deployment offering wrapping in-flow would request it.
 - **A-Pass tier granularity is not fully mapped.** `getTokenId(address)` is confirmed; the per-tokenId tier getter did not match ~35 candidate signatures in the implementation bytecode. `canTransfer` already encapsulates the tier check on-chain, and `POST /query_apass` supplies the tier off-chain, so nothing depends on the gap.
 - **Single owner.** A production deployment wants a threshold signer set rather than one EOA.
 
