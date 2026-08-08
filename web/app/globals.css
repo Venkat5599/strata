@@ -485,3 +485,47 @@ button.act[data-tone="danger"]:hover { color: var(--verified); border-color: var
   .stats { grid-template-columns: repeat(2, 1fr); }
   .wiring { grid-template-columns: 1fr; }
 }
+
+
+/* ============================================================
+   EDITORIAL MOTION LAYER
+   ============================================================ */
+
+.lp-tag, .lp-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--ink-dim); }
+.lp-eyebrow { margin-bottom: 26px; }
+.lp-hero-copy .lp-eyebrow { color: var(--verified); }
+
+.lp-h1 { font-size: clamp(44px, 6.4vw, 84px); line-height: 1.02; }
+
+.art-bracket { animation: bracket-grow 1400ms cubic-bezier(0.22, 0.7, 0.2, 1) 300ms both; transform-origin: left; }
+@keyframes bracket-grow { from { transform: scaleX(0.08); opacity: 0.4; } to { transform: scaleX(1); opacity: 1; } }
+.art-basis { animation: fade-in 700ms ease 1100ms both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.marquee { border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge); overflow: hidden; padding: 16px 0; margin: 8px 0 0; }
+.marquee-track { display: inline-flex; white-space: nowrap; font-family: var(--mono); font-size: 13px; letter-spacing: 0.14em; color: var(--ink-dim); animation: marquee 26s linear infinite; }
+.marquee-track i { color: var(--verified); font-style: normal; padding: 0 14px; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } .art-bracket, .art-basis { animation: none; } }
+
+.lp-chapters { padding: 40px 0 20px; }
+.chapter {
+  display: grid; grid-template-columns: 88px 1fr 40px; gap: 28px; align-items: start;
+  padding: 40px 8px; border-top: 1px solid var(--edge); text-decoration: none;
+  transition: padding-left 320ms cubic-bezier(0.22, 0.7, 0.2, 1), background-color 320ms ease;
+}
+.lp-chapters .chapter:last-child { border-bottom: 1px solid var(--edge); }
+.chapter:hover { padding-left: 24px; background: linear-gradient(90deg, #1c1811, transparent 70%); }
+.chapter-n { font-family: var(--mono); font-size: 15px; color: var(--verified); padding-top: 10px; }
+.chapter-title { font-family: var(--display); font-size: clamp(26px, 3.4vw, 44px); font-weight: 400; margin: 0 0 12px; color: var(--ink); line-height: 1.05; transition: color 220ms ease; }
+.chapter-lede { color: var(--ink-dim); font-size: 15px; line-height: 1.6; max-width: 62ch; margin: 0; }
+.chapter-arrow { font-family: var(--mono); font-size: 22px; color: var(--ink-faint); padding-top: 8px; transform: translateX(-8px); opacity: 0; transition: transform 320ms cubic-bezier(0.22, 0.7, 0.2, 1), opacity 320ms ease, color 220ms ease; }
+.chapter:hover .chapter-arrow { transform: translateX(0); opacity: 1; color: var(--verified); }
+.chapter:hover .chapter-title { color: var(--verified); }
+
+.lp-branches-wrap { padding: 60px 0 20px; }
+.lp-deployed .lp-eyebrow { margin-bottom: 22px; }
+
+.lp-nav { backdrop-filter: blur(8px); }
+.lp-tag { display: none; }
+@media (min-width: 720px) { .lp-tag { display: inline; } }
