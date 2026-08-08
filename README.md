@@ -196,7 +196,7 @@ deploy/Deploy.s.sol              Monad testnet deployment
 tools/cleanverse.mjs             cooperate API client (AES-CBC + plain JSON)
 tools/mint-apass.mjs             mint a CVI credential
 tools/register-validator.mjs     register the pool with Cleanverse
-web/                             Next.js stratum ledger
+frontend/                        Next.js stratum ledger
 docs/                            PRD, architecture, submission summary
 ```
 

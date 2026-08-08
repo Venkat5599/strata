@@ -186,7 +186,7 @@ test/
   Resolver.t.sol          # fuzz — the four invariants
   StrataPool.t.sol        # integration
 script/Deploy.s.sol
-web/                      # single page + viem
+frontend/                 # single page + viem
 README.md                 # deployed addresses, demo video, honest limitations
 ```
 
