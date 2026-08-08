@@ -1,6 +1,8 @@
 name: CI
 
-on:
+# Quoted: unquoted `on` is a boolean in YAML 1.1 and GitHub's parser has
+# rejected it as a workflow-file issue on some paths.
+"on":
   push:
     branches: [main]
   pull_request:
