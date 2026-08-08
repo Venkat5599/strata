@@ -17,3 +17,9 @@ web/.vite/
 # local scratch
 cleanverse-docs.txt
 .playwright-mcp/
+
+# next.js
+web/node_modules/
+web/.next/
+web/out/
+.env.local
