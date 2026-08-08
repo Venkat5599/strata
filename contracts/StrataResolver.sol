@@ -123,10 +123,7 @@ library StrataResolver {
         // below never has to treat 0 == 0 as a degenerate "fully satisfied" case.
         if (requested == 0) {
             return StrataTypes.ExitPlan({
-                branch: StrataTypes.Branch.Direct,
-                burnable: 0,
-                deferred: 0,
-                reason: StrataTypes.REASON_NONE
+                branch: StrataTypes.Branch.Direct, burnable: 0, deferred: 0, reason: StrataTypes.REASON_NONE
             });
         }
 

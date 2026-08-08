@@ -9,12 +9,14 @@ import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
 
 /// @notice Deploys StrataPool to Monad testnet against the live Cleanverse contracts.
 /// @dev forge script script/Deploy.s.sol --rpc-url $MONAD_RPC_URL --broadcast
+///      Addresses come from env with fallback to the live Monad testnet deployment.
 contract Deploy is Script {
     // Live Monad testnet (chainId 10143). Sourced from the Cleanverse REST API
-    // /query_deposit_atoken_list and confirmed by direct eth_call.
-    address internal constant USDC = 0x534b2f3A21130d7a60830c2Df862319e593943A3;
-    address internal constant AUSDC = 0xaC0893567D43C3E7e6e35a72803df05416C1f20D;
-    address internal constant POLICY = 0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd;
+    // /query_deposit_atoken_list and confirmed by direct eth_call. Override per
+    // environment via env vars (STRATA_USDC, STRATA_AUSDC, STRATA_POLICY).
+    address internal usdc = vm.envOr("STRATA_USDC", 0x534b2f3A21130d7a60830c2Df862319e593943A3);
+    address internal ausdc = vm.envOr("STRATA_AUSDC", 0xaC0893567D43C3E7e6e35a72803df05416C1f20D);
+    address internal policy = vm.envOr("STRATA_POLICY", 0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd);
 
     function run() external returns (StrataPool pool) {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -25,14 +27,14 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
         // Pooled asset is plain USDC so any party may hold it; aUSDC is the registered
         // A-Token the policy questions are denominated in. See StrataPool natspec.
-        pool = new StrataPool(IERC20(USDC), IERC20(AUSDC), ICleanversePolicy(POLICY), deployer);
+        pool = new StrataPool(IERC20(usdc), IERC20(ausdc), ICleanversePolicy(policy), deployer);
         vm.stopBroadcast();
 
         console.log("StrataPool:", address(pool));
         console.log("owner     :", deployer);
-        console.log("asset     :", USDC);
-        console.log("ref       :", AUSDC);
-        console.log("policy    :", POLICY);
+        console.log("asset     :", usdc);
+        console.log("ref       :", ausdc);
+        console.log("policy    :", policy);
         console.log("basis bps :", uint256(int256(pool.basis(1, 0))));
     }
 }

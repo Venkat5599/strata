@@ -114,12 +114,12 @@ RUN_FORK=1 STRATA_POOL=0xe747e5adbde5363564e7b2d2c2c3199fae46a64e \
   forge test --match-contract Fork           # 15 tests against live Cleanverse contracts
 ```
 
-**47 tests, 0 failures.**
+**48 tests, 0 failures.**
 
 | Suite | Count | What it proves |
 |---|---|---|
 | `StrataResolver.t.sol` | 11 | The four invariants at 10 000 fuzz runs each |
-| `StrataPool.t.sol` | 12 | Deposit, graded exit, revocation, pricing |
+| `StrataPool.t.sol` | 13 | Deposit, graded exit, revocation, pricing, stratum-total invariant |
 | `StrataPoolAudit.t.sol` | 9 | One regression per audit finding, plus a solvency invariant |
 | `StrataPool.fork.t.sol` | 15 | The same behaviour against the **real** Policy, A-Pass and tokens, including live aUSDC custody |
 
@@ -157,9 +157,18 @@ Bugs found earlier by the test suite rather than by review, all fixed: orphaned 
 cd web && npm install && npm run dev
 ```
 
-One route, one component that matters: the **stratum ledger**. A horizontal bar is the pooled balance, segmented by stratum; a price tick sits above each segment; the bracket between them is the compliance basis. Demo beats are deep-linkable — `/?beat=2` lands directly on the routed exit.
+One route, one component that matters: the **stratum ledger**. A horizontal bar is the pooled
+balance, segmented by stratum; a price tick sits above each segment; the bracket between them
+is the compliance basis. Every number is a live contract read — stratum shares come from the
+`stratumTotalShares` counter (sum == totalSupply, invariant-tested), prices from `price()`,
+the split from `basis()`. The wallet panel signs real transactions: deposit (USDC or aUSDC
+with an A-Pass), withdraw with a live `previewExit` plan, credential linking, and compliance
+sync. There is no simulation and no mock data in the frontend.
 
-Server routes keep `CLEANVERSE_API_KEY` out of the browser bundle, which is the concrete reason this is a Next server app rather than a static page.
+Server routes keep `CLEANVERSE_API_KEY` out of the browser bundle, which is the concrete
+reason this is a Next server app rather than a static page. The two Cleanverse-proxying
+routes are rate-limited per IP, and `/api/health` proves configuration before any wallet
+connects.
 
 ---
 

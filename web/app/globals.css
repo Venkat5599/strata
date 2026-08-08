@@ -450,6 +450,19 @@ button.act[data-tone="danger"]:hover { color: var(--verified); border-color: var
 .wallet-mini.ghost { color: var(--ink-dim); border-color: var(--edge); }
 .wallet-mini:hover { border-color: var(--verified); }
 
+.wallet-pos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.wallet-pos div { border: 1px solid var(--edge); border-radius: 4px; padding: 8px 10px; }
+.wallet-pos span { display: block; font-size: 10px; letter-spacing: 0.08em; color: var(--ink-dim); text-transform: uppercase; }
+.wallet-pos b { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.wallet-deposit { margin-top: 10px; }
+.wallet-row { display: flex; gap: 8px; }
+.wallet-input { flex: 1; font-size: 13px; color: var(--ink); background: var(--ground); border: 1px solid var(--edge-strong); border-radius: 4px; padding: 9px 10px; min-width: 0; }
+.wallet-input:focus { outline: none; border-color: var(--verified); }
+.wallet-actions { display: flex; gap: 8px; margin-top: 4px; }
+.wallet-actions .wallet-mini { flex: 1; margin-top: 0; }
+.wallet-plan { font-size: 11px; color: var(--ink-dim); line-height: 1.45; margin: 8px 0 0; }
+.plan-idle p { font-size: 13px; color: var(--ink-dim); line-height: 1.55; margin: 10px 0 0; }
+
 .dash-main { padding: 0; overflow-x: hidden; }
 .dash-content { max-width: 860px; margin: 0 auto; padding: 34px 40px 90px; }
 .dash-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--edge); }

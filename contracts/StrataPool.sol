@@ -148,6 +148,14 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     /// @notice Shares whose legal path is currently closed, awaiting compliant liquidation.
     mapping(bytes32 cviRef => uint128 shares) public deferredShares;
 
+    /// @notice Total shares outstanding per stratum, across every credential.
+    /// @dev The pool-wide view the ledger renders. Without it, per-stratum totals are
+    ///      unrecoverable: lots are keyed by credential and cannot be enumerated from
+    ///      outside, so any client-side reconstruction would be an estimate. Keeping the
+    ///      counter on-chain makes the frontend read state instead of simulating it.
+    ///      Invariant: sum(stratumTotalShares) == totalSupply, enforced by test.
+    mapping(uint8 stratumId => uint128 shares) public stratumTotalShares;
+
     // ---------------------------------------------------------------------
     // Construction
     // ---------------------------------------------------------------------
@@ -276,6 +284,9 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
         for (uint256 i = 0; i < n; ++i) {
             if (from[i].shares == 0) continue;
+            // Lot moves between credentials; the stratum total is unchanged by the
+            // migration itself, so decrement the source side to offset _creditLot.
+            stratumTotalShares[from[i].stratumId] -= from[i].shares;
             _creditLot(currentRef, from[i].shares, from[i].stratumId, from[i].aTokenBacked);
             from[i].shares = 0;
         }
@@ -326,26 +337,23 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
     ///      lot array stays bounded. Backing is part of the key: two lots can sit in one
     ///      stratum and still be denominated in different instruments, and merging them would
     ///      lose the information needed to settle each in the token it was funded with.
-    function _creditLot(bytes32 cviRef, uint128 shares, uint8 stratumId, bool aTokenBacked)
-        internal
-    {
+    function _creditLot(bytes32 cviRef, uint128 shares, uint8 stratumId, bool aTokenBacked) internal {
         StrataTypes.Position[] storage lots = _lots[cviRef];
         uint256 n = lots.length;
         for (uint256 i = 0; i < n; ++i) {
             if (lots[i].stratumId == stratumId && lots[i].aTokenBacked == aTokenBacked) {
                 lots[i].shares += shares;
+                stratumTotalShares[stratumId] += shares;
                 return;
             }
         }
         if (n >= MAX_LOTS_PER_CREDENTIAL) revert TooManyLots();
         lots.push(
             StrataTypes.Position({
-                cviRef: cviRef,
-                shares: shares,
-                stratumId: stratumId,
-                aTokenBacked: aTokenBacked
+                cviRef: cviRef, shares: shares, stratumId: stratumId, aTokenBacked: aTokenBacked
             })
         );
+        stratumTotalShares[stratumId] += shares;
     }
 
     /// @notice Deposit the Cleanverse A-Token itself and receive shares backed by it.
@@ -480,6 +488,7 @@ contract StrataPool is ERC20, Ownable, ReentrancyGuard {
 
                 uint128 take = p.shares < amount ? p.shares : amount;
                 p.shares -= take;
+                stratumTotalShares[p.stratumId] -= take;
                 amount -= take;
 
                 if (p.aTokenBacked) {

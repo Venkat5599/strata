@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contracts:
+    name: Contracts (forge)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Forge cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.foundry/cache
+          key: ${{ runner.os }}-forge-${{ hashFiles('foundry.toml', 'contracts/**', 'test/**') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-
+
+      - name: Check formatting
+        run: forge fmt --check
+
+      - name: Build
+        run: forge build
+
+      - name: Run local suite (32 tests + fuzz)
+        run: forge test
+
+      - name: Run fork suite against live Cleanverse contracts
+        env:
+          MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL }}
+          STRATA_POOL: 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e
+        run: |
+          if [ -n "$MONAD_RPC_URL" ]; then
+            RUN_FORK=1 forge test --match-contract Fork
+          else
+            echo "MONAD_RPC_URL secret not set - skipping fork suite"
+          fi
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_MONAD_RPC_URL: https://testnet-rpc.monad.xyz
+          NEXT_PUBLIC_POOL_ADDRESS: 0xe747e5adbde5363564e7b2d2c2c3199fae46a64e

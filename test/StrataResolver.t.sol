@@ -196,10 +196,7 @@ contract StrataResolverTest is Test {
     // ---------------------------------------------------------------------
 
     /// @notice The three branches are exhaustive and mutually exclusive.
-    function testFuzz_branchMatchesAmounts(uint256 seed, uint8 nP, uint8 nS, uint128 requested)
-        public
-        view
-    {
+    function testFuzz_branchMatchesAmounts(uint256 seed, uint8 nP, uint8 nS, uint128 requested) public view {
         requested = uint128(bound(requested, 1, 10_000_000e6));
         (StrataTypes.Position[] memory p, StrataTypes.StratumState[] memory s) = _build(seed, nP, nS);
         StrataTypes.ExitPlan memory plan = harness.resolve(_view(seed, requested), p, s, requested);
@@ -272,11 +269,7 @@ contract StrataResolverTest is Test {
 
         // An unverified LP: no tier, so the VERIFIED stratum is closed to them.
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
-            cviRef: ALICE,
-            tier: 0,
-            frozen: false,
-            policyClears: true,
-            timestamp: uint64(block.timestamp)
+            cviRef: ALICE, tier: 0, frozen: false, policyClears: true, timestamp: uint64(block.timestamp)
         });
 
         StrataTypes.ExitPlan memory plan = harness.resolve(v, p, s, 100e6);
@@ -296,11 +289,7 @@ contract StrataResolverTest is Test {
         p[0] = StrataTypes.Position({cviRef: ALICE, shares: 100e6, stratumId: 0, aTokenBacked: false});
 
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
-            cviRef: ALICE,
-            tier: 20,
-            frozen: false,
-            policyClears: true,
-            timestamp: uint64(block.timestamp)
+            cviRef: ALICE, tier: 20, frozen: false, policyClears: true, timestamp: uint64(block.timestamp)
         });
 
         StrataTypes.ExitPlan memory plan = harness.resolve(v, p, s, 100e6);
@@ -317,9 +306,7 @@ contract StrataResolverTest is Test {
     function test_unlockedLotsConsumedFirst() public view {
         StrataTypes.StratumState[] memory s = new StrataTypes.StratumState[](2);
         s[0] = StrataTypes.StratumState({
-            minTier: 0,
-            lockUntil: uint64(block.timestamp + 30 days),
-            blocked: false
+            minTier: 0, lockUntil: uint64(block.timestamp + 30 days), blocked: false
         });
         s[1] = StrataTypes.StratumState({minTier: 0, lockUntil: 0, blocked: false});
 
@@ -329,11 +316,7 @@ contract StrataResolverTest is Test {
         p[1] = StrataTypes.Position({cviRef: ALICE, shares: 50e6, stratumId: 1, aTokenBacked: false});
 
         StrataTypes.RedeemerView memory v = StrataTypes.RedeemerView({
-            cviRef: ALICE,
-            tier: 99,
-            frozen: false,
-            policyClears: true,
-            timestamp: uint64(block.timestamp)
+            cviRef: ALICE, tier: 99, frozen: false, policyClears: true, timestamp: uint64(block.timestamp)
         });
 
         StrataTypes.ExitPlan memory plan = harness.resolve(v, p, s, 50e6);

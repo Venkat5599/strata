@@ -4,8 +4,10 @@ import {EXPLORER_ADDR} from "@/lib/contracts";
 import {SmoothScroll} from "@/components/SmoothScroll";
 import {ScrollReveal} from "@/components/ScrollReveal";
 import {Parallax} from "@/components/Parallax";
+import {LiveHeroArt} from "@/components/LiveHeroArt";
 
-const RATES = ["DIRECT", "ROUTED", "BLOCKED", "CVI", "CVA", "BASIS +225bps", "MONAD 10143", "VERIFIED 99.75", "OPEN 97.50"];
+// Labels only - values are read live from the contract by LiveHeroArt.
+const RATES = ["DIRECT", "ROUTED", "BLOCKED", "CVI", "CVA", "MONAD 10143"];
 
 export default function Landing() {
   return (
@@ -53,16 +55,7 @@ export default function Landing() {
         </div>
         <div className="ef-hero-r" aria-hidden="true">
           <div className="ef-artcard px" data-px data-px-speed="0.16">
-            <div className="art-ticks">
-              <div className="art-tick" style={{left: "29%"}}><span>97.50</span><i>OPEN</i></div>
-              <div className="art-tick verified" style={{left: "79%"}}><span>99.75</span><i>VERIFIED</i></div>
-            </div>
-            <div className="art-bar">
-              <div className="art-seg art-open" style={{flexGrow: 58}}>OPEN<b>58</b></div>
-              <div className="art-seg art-verified" style={{flexGrow: 42}}>VERIFIED<b>42</b></div>
-            </div>
-            <div className="art-bracket-row"><div className="art-bracket" /><span className="art-basis">+225 bps</span></div>
-            <div className="ef-artcard-cap">the compliance basis, priced on-chain</div>
+            <LiveHeroArt />
           </div>
         </div>
       </header>
@@ -94,9 +87,9 @@ export default function Landing() {
             <h3>The basis</h3>
             <p>Strata differ in legal transferability, so they differ in price. The gap between them is the first live on-chain price for what a transfer restriction costs.</p>
             <ul>
-              <li>+225 bps on the deployed pool</li>
+              <li>Readable by anyone, on-chain</li>
               <li>Widens on revocation</li>
-              <li>Readable by anyone</li>
+              <li>Rendered live on this page</li>
             </ul>
             <Link href="/dashboard" className="ef-card-cta">Open the ledger &rarr;</Link>
           </div>

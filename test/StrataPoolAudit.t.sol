@@ -131,9 +131,7 @@ contract StrataPoolAuditTest is Test {
         pool.deposit(10 * ONE);
 
         vm.prank(verifiedLp);
-        vm.expectRevert(
-            abi.encodeWithSelector(StrataPool.InsufficientShares.selector, 10 * ONE, 11 * ONE)
-        );
+        vm.expectRevert(abi.encodeWithSelector(StrataPool.InsufficientShares.selector, 10 * ONE, 11 * ONE));
         pool.withdraw(uint128(11 * ONE));
     }
 

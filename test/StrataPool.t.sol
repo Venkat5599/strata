@@ -338,6 +338,63 @@ contract StrataPoolTest is Test {
         assertEq(preview.deferred, actual.deferred, "deferred must match");
     }
 
+    /// @notice Per-stratum share totals track every accounting path the pool can take.
+    /// @dev The ledger renders these totals; if they drifted from totalSupply the frontend
+    ///      would show a pool split that does not exist. Covers deposit, credential
+    ///      migration, a partial (Routed) exit, a Direct exit, and an aUSDC deposit.
+    function test_stratumTotalsEqualSupplyAcrossAllPaths() public {
+        // OPEN deposit (58) + VERIFIED deposit (42) after late verification.
+        vm.prank(openLp);
+        pool.deposit(58 * ONE);
+        passRegistry.issue(openLp, 3003);
+        vm.prank(openLp);
+        pool.deposit(42 * ONE);
+
+        // Verified LP deposits aUSDC through the A-Token path.
+        aToken.mint(verifiedLp, 10 * ONE);
+        vm.prank(verifiedLp);
+        aToken.approve(address(pool), type(uint256).max);
+        vm.prank(verifiedLp);
+        pool.depositAToken(10 * ONE);
+
+        assertEq(pool.stratumTotalShares(OPEN_ID), 58 * ONE, "OPEN stratum holds the 58");
+        assertEq(pool.stratumTotalShares(VERIFIED_ID), 52 * ONE, "VERIFIED holds 42 + 10 aUSDC");
+        assertEq(
+            pool.stratumTotalShares(OPEN_ID) + pool.stratumTotalShares(VERIFIED_ID),
+            pool.totalSupply(),
+            "stratum totals sum to totalSupply"
+        );
+
+        // Raise the VERIFIED bar so a full 100-share exit becomes Routed.
+        vm.prank(owner);
+        pool.configureStratum(VERIFIED_ID, 2, 0, 25);
+
+        vm.prank(openLp);
+        StrataTypes.ExitPlan memory plan = pool.withdraw(uint128(100 * ONE));
+
+        assertEq(uint8(plan.branch), uint8(StrataTypes.Branch.Routed), "expect a partial exit");
+        assertEq(
+            pool.stratumTotalShares(OPEN_ID) + pool.stratumTotalShares(VERIFIED_ID),
+            pool.totalSupply(),
+            "totals still sum to supply after the routed exit"
+        );
+
+        // Burn the remainder directly. The 42 VERIFIED shares are tier-blocked
+        // (minTier 2 vs tier 1), so they defer rather than burn - that is the honest
+        // accounting, and the totals must reflect it.
+        uint256 held = pool.balanceOf(openLp);
+        vm.prank(openLp);
+        pool.withdraw(uint128(held));
+
+        assertEq(pool.stratumTotalShares(OPEN_ID), 0, "OPEN is empty");
+        assertEq(pool.stratumTotalShares(VERIFIED_ID), 52 * ONE, "42 tier-blocked + 10 aUSDC remain");
+        assertEq(
+            pool.stratumTotalShares(OPEN_ID) + pool.stratumTotalShares(VERIFIED_ID),
+            pool.totalSupply(),
+            "totals still sum after the direct exit"
+        );
+    }
+
     /// @notice Shares cannot be transferred to a clean wallet to launder an exit.
     function test_sharesAreNonTransferable() public {
         vm.prank(verifiedLp);

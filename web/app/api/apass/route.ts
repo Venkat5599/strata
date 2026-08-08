@@ -9,6 +9,12 @@ export const dynamic = "force-dynamic";
 const BASE = process.env.CLEANVERSE_API_BASE ?? "https://uatapi.cleanverse.com/api/cooperate";
 
 export async function GET(req: Request) {
+  const {rateLimit, clientIp} = await import("@/lib/rate-limit");
+  const rl = rateLimit(clientIp(req));
+  if (!rl.ok) {
+    return NextResponse.json({error: "rate limit exceeded"}, {status: 429});
+  }
+
   const address = new URL(req.url).searchParams.get("address");
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
     return NextResponse.json({error: "address query parameter required"}, {status: 400});
