@@ -8,7 +8,7 @@ Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad t
 
 ## Live
 
-- **App:** https://strata-monad.vercel.app  (landing + `/dashboard`)
+- **App:** https://strata-monad-nine.vercel.app  (landing + `/dashboard`, live demo pool)
 - **Contract source:** verified on Sourcify — https://repo.sourcify.dev/contracts/full_match/10143/0xa7c457dd7add8e57317ba2b43ea4817f07192dea/
 - **Mandatory wallet transaction, proven live:** `syncStratum(1)` tx `0x92bdf770c08c14c2d74b984cd56311f83ce9c312435585dee79b745566359471` (status 1). This is the exact call the dashboard's "Sync compliance state" button signs from a browser-extension wallet.
 
