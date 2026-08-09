@@ -365,7 +365,8 @@ tools/register-validator.mjs     register the pool with Cleanverse
 frontend/                        Next.js stratum ledger + exit resolver + activity feed
   app/api/                       apass, apass/mint, ccp/export, health (server routes)
   components/                    WalletPanel, ExitResolver, ActivityFeed, LiveWiring, SidebarStatus
-docs/                            PRD, architecture, one-page summary (PDF), media
+docs/                            PRD, architecture, media
+SUBMISSION.md / .pdf / .typ      one-page summary (PDF + source), at the repo root
 ```
 
 ## Tech stack
