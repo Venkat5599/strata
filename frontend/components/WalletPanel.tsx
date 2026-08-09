@@ -120,6 +120,34 @@ export function WalletPanel() {
   const doSync = () => writeContract({
     address: POOL, abi: poolWriteAbi, functionName: "syncStratum", args: [1],
   });
+  const [mintMsg, setMintMsg] = useState<string | null>(null);
+  const [mintPending, setMintPending] = useState(false);
+  // Mint 10k dUSDC from the open-mint demo token. Real transaction; the demo
+  // dollar is the pooled asset because testnet USDC has no open mint.
+  const doMintUsdc = () => {
+    if (!address) return;
+    writeContract({
+      address: USDC, abi: erc20Abi, functionName: "mint", args: [address, 10_000_000_000n],
+    });
+  };
+  // Mint an A-Pass through the server route (keeps the API key server-side).
+  const doMintApass = async () => {
+    setMintPending(true);
+    setMintMsg(null);
+    try {
+      const res = await fetch("/api/apass/mint", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({address}),
+      });
+      const json = await res.json();
+      setMintMsg(json.error ?? (json.txHash ? `A-Pass minted — tx ${short(json.txHash)}` : "A-Pass minted"));
+    } catch (err) {
+      setMintMsg(`mint failed: ${String(err).slice(0, 80)}`);
+    } finally {
+      setMintPending(false);
+    }
+  };
 
   if (!isConnected) {
     return (
@@ -203,9 +231,14 @@ export function WalletPanel() {
           </div>
 
           <div className="wallet-actions">
+            <button className="wallet-mini" onClick={doMintUsdc}>Mint 10k dUSDC</button>
+            <button className="wallet-mini" onClick={doMintApass} disabled={mintPending}>
+              {mintPending ? "Minting A-Pass…" : "Mint A-Pass"}
+            </button>
             <button className="wallet-mini" onClick={doLink}>Link credential</button>
             <button className="wallet-mini" onClick={doSync}>Sync compliance state</button>
           </div>
+          {mintMsg && <p className="wallet-plan">{mintMsg}</p>}
         </>
       )}
 

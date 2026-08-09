@@ -15,11 +15,14 @@ export const monadTestnet = defineChain({
   },
 });
 
-// Live Cleanverse deployments on Monad testnet (chainId 10143), confirmed by direct
+// Live deployments on Monad testnet (chainId 10143), confirmed by direct
 // eth_call on 2026-08-08. Override per-environment via NEXT_PUBLIC_* vars.
+// The pooled asset is DemoUSDC (dUSDC): testnet USDC has no open mint and the
+// Cleanverse faucet is dry, so the demo pool pools a mintable test dollar while
+// the compliance layer (aUSDC / Policy / A-Pass) stays fully real.
 export const CLEANVERSE = {
   usdc: (process.env.NEXT_PUBLIC_CLEANVERSE_USDC ??
-    "0x534b2f3A21130d7a60830c2Df862319e593943A3") as Address,
+    "0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242") as Address,
   ausdc: (process.env.NEXT_PUBLIC_CLEANVERSE_AUSDC ??
     "0xaC0893567D43C3E7e6e35a72803df05416C1f20D") as Address,
   apass: (process.env.NEXT_PUBLIC_CLEANVERSE_APASS ??
@@ -29,7 +32,7 @@ export const CLEANVERSE = {
 } as const;
 
 export const POOL_ADDRESS = (process.env.NEXT_PUBLIC_POOL_ADDRESS ??
-  "0xa7c457dd7add8e57317ba2b43ea4817f07192dea") as Address;
+  "0x6BA9307946c52c1eac6A8d20613B4fe2C990F968") as Address;
 
 export const publicClient = createPublicClient({chain: monadTestnet, transport: http()});
 
