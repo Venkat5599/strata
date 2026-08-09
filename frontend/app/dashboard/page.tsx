@@ -7,6 +7,7 @@ import {LiveStats} from "@/components/LiveStats";
 import {WalletPanel} from "@/components/WalletPanel";
 import {ActivityFeed} from "@/components/ActivityFeed";
 import {LiveWiring} from "@/components/LiveWiring";
+import {ExitResolver} from "@/components/ExitResolver";
 import {POOL_ADDRESS, type Stratum} from "@/lib/strata";
 import {POOL} from "@/lib/contracts";
 import {poolReadAbi} from "@/lib/strata";
@@ -98,6 +99,14 @@ export default function Dashboard() {
             </p>
           </div>
         )}
+      </section>
+
+      <section className="panel" id="resolver">
+        <div className="panel-head">
+          <h2>Try the exit resolver</h2>
+          <span className="panel-note">live view call — no wallet needed</span>
+        </div>
+        <ExitResolver />
       </section>
 
       <section className="panel" id="activity">
