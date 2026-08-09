@@ -31,18 +31,18 @@ Not adjacent to the protocol — read synchronously, on-chain, on every exit.
 | **CVI — Policy** | `policyClears()` calls `Policy.canTransfer`, mapping its revert to `false`. `isFrozen()` drives the `Blocked` branch. | Fork tests assert both revert and success paths against the live contract |
 | **CVA — A-Token, referenced** | aUSDC is the instrument every policy question is denominated in; rules bind to a registered A-Token. Verified at construction. | `isTokenRegistered(aUSDC) == true`; constructor rejects plain USDC |
 | **CVA — A-Token, custodied** | `depositAToken()` takes aUSDC directly, so the pool **holds real aUSDC**. Lots record their backing, and an A-Token claim settles back in the A-Token rather than a plain-token substitute. | Fork tests deposit and redeem aUSDC against the live deployment |
-| **CVI — pool credential** | The pool holds **its own A-Pass**, minted through the same `/generate_apass` path a user takes. No contract can receive an A-Token without one. | `A-Pass.balanceOf(pool) == 1`, tx `0xfea66697...` |
+| **CVI — pool credential** | The pool holds **its own A-Pass**, minted through the same `/generate_apass` path a user takes. No contract can receive an A-Token without one. | `A-Pass.balanceOf(pool) == 1`, tx `0xbf0968b8...` (live demo pool) |
 | **CCP** | `/api/ccp/export` produces a downloadable audit record combining pool state with the live credential record; api-key stays server-side. | Next.js server route |
-| **Validator** | Pool registered through the **write** path with an EIP-191 owner signature verified against the on-chain `owner()` — which is why the pool is `Ownable`. | `register` tx `0xfba1314b…`, `is_register: true`, rules echo `min_tier: 1` |
+| **Validator** | Pool registered through the **write** path with an EIP-191 owner signature verified against the on-chain `owner()` — which is why the pool is `Ownable`. | `register` tx `0xfba1314b…`, `is_register: true`, rules echo `min_tier: 1` (older deployment); demo pool registered with the same flow |
 
 Remove any one and STRATA is just a whitelist.
 
 ## Deployed — Monad testnet (chainId 10143)
 
 ```
-StrataPool   0xa7c457dd7add8e57317ba2b43ea4817f07192dea   (registered compliance pool)
-Owner        0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389
-USDC         0x534b2f3A21130d7a60830c2Df862319e593943A3   (pooled asset)
+StrataPool   0x6BA9307946c52c1eac6A8d20613B4fe2C990F968   (live demo pool, populated)
+Owner        0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0
+USDC (pooled) 0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242   (DemoUSDC — open testnet mint, 6 decimals)
 aUSDC (CVA)  0xaC0893567D43C3E7e6e35a72803df05416C1f20D   (referenced AND custodied)
 A-Pass (CVI) 0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9
 Policy       0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd
@@ -52,7 +52,7 @@ Validator    0xaC7e5179C2C7f03f209136886c172eb34F161792
 Judges can call it directly:
 
 ```bash
-cast call 0xa7c457dd7add8e57317ba2b43ea4817f07192dea "basis(uint8,uint8)(int256)" 1 0 \
+cast call 0x6BA9307946c52c1eac6A8d20613B4fe2C990F968 "basis(uint8,uint8)(int256)" 1 0 \
   --rpc-url https://testnet-rpc.monad.xyz     # 225
 ```
 
