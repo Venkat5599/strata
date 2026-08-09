@@ -40,8 +40,8 @@ Remove any one and STRATA is just a whitelist.
 ## Deployed — Monad testnet (chainId 10143)
 
 ```
-StrataPool   0x6BA9307946c52c1eac6A8d20613B4fe2C990F968   (live demo pool, populated)
-Owner        0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0
+StrataPool   0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1   (registered compliance pool, populated)
+Owner        0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389
 USDC (pooled) 0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242   (DemoUSDC — open testnet mint, 6 decimals)
 aUSDC (CVA)  0xaC0893567D43C3E7e6e35a72803df05416C1f20D   (referenced AND custodied)
 A-Pass (CVI) 0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9
@@ -52,7 +52,7 @@ Validator    0xaC7e5179C2C7f03f209136886c172eb34F161792
 Judges can call it directly:
 
 ```bash
-cast call 0x6BA9307946c52c1eac6A8d20613B4fe2C990F968 "basis(uint8,uint8)(int256)" 1 0 \
+cast call 0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1 "basis(uint8,uint8)(int256)" 1 0 \
   --rpc-url https://testnet-rpc.monad.xyz     # 225
 ```
 
