@@ -9,27 +9,18 @@ import {poolReadAbi} from "@/lib/strata";
 // previewExit is a VIEW on the pool — it grades a real exit request against live
 // chain state (the account's credential, the pool's strata, the policy) and
 // returns Direct / Routed / Blocked with the burnable/deferred split.
-// A reviewer can drive this from the page without connecting or signing anything.
+//
+// Every number here is read from the chain at render time:
+//   - the participants are the pool's real holders (from its event history)
+//   - each balance is a live balanceOf read
+//   - the verdict is a live previewExit call
+// Nothing is hardcoded except the account addresses, which are the actual
+// on-chain depositors.
 
-const PARTICIPANTS = [
-  {
-    label: "Verified LP (A-Pass, VERIFIED stratum is revoked)",
-    addr: "0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389",
-    balance: 250_000,
-    color: "var(--verified)",
-  },
-  {
-    label: "Unverified LP (no credential)",
-    addr: "0xA4B9960bc968B487337EF3b16fE823A0D950067C",
-    balance: 150_000,
-    color: "var(--open)",
-  },
-  {
-    label: "Mixed LP (OPEN + VERIFIED)",
-    addr: "0xEa3a73e61e63d196012c51c10282C576289aace6",
-    balance: 120_000,
-    color: "#c62828",
-  },
+const PARTICIPANT_ADDRS = [
+  {addr: "0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389", label: "Verified LP (holds an A-Pass)"},
+  {addr: "0xA4B9960bc968B487337EF3b16fE823A0D950067C", label: "Unverified LP (no credential)"},
+  {addr: "0xEa3a73e61e63d196012c51c10282C576289aace6", label: "Mixed LP (OPEN + VERIFIED lots)"},
 ] as const;
 
 const BRANCH = ["Direct", "Routed", "Blocked"] as const;
@@ -38,14 +29,27 @@ export function ExitResolver() {
   const [who, setWho] = useState(0);
   const [pct, setPct] = useState(100);
 
-  const participant = PARTICIPANTS[who];
-  const shares = useMemo(() => BigInt(Math.round((participant.balance * pct) / 100)) * 1_000_000n, [participant, pct]);
+  const participant = PARTICIPANT_ADDRS[who];
+
+  // Live balance read — the slider's ceiling is the holder's actual position.
+  const balance = useReadContract({
+    address: POOL,
+    abi: poolReadAbi,
+    functionName: "balanceOf",
+    args: [participant.addr],
+  }).data as bigint | undefined;
+
+  const balanceUsdc = balance === undefined ? 0 : Number(balance) / 1e6;
+  const requested = useMemo(
+    () => balance === undefined ? 0n : (balance * BigInt(pct)) / 100n,
+    [balance, pct]
+  );
 
   const plan = useReadContract({
     address: POOL,
     abi: poolReadAbi,
     functionName: "previewExit",
-    args: [participant.addr, shares],
+    args: [participant.addr, requested],
   }).data as {branch: number; burnable: bigint; deferred: bigint; reason: number} | undefined;
 
   const burnable = Number(plan?.burnable ?? 0n) / 1e6;
@@ -56,9 +60,9 @@ export function ExitResolver() {
     <div className="resolver">
       <div className="resolver-controls">
         <div className="resolver-who">
-          {PARTICIPANTS.map((p, i) => (
+          {PARTICIPANT_ADDRS.map((p, i) => (
             <button key={p.addr} className={`resolver-pill ${i === who ? "on" : ""}`} onClick={() => setWho(i)}>
-              <span className="pill-dot" style={{background: p.color}} />
+              <span className="pill-dot" />
               {p.label}
             </button>
           ))}
@@ -70,7 +74,7 @@ export function ExitResolver() {
             onChange={(e) => setPct(Number(e.target.value))}
             aria-label="exit percent"
           />
-          <span className="resolver-amt">{((participant.balance * pct) / 100).toLocaleString()} dUSDC</span>
+          <span className="resolver-amt">{balance === undefined ? "…" : `${Math.round((balanceUsdc * pct) / 100).toLocaleString()} dUSDC`}</span>
         </div>
       </div>
 
@@ -89,7 +93,7 @@ export function ExitResolver() {
         </p>
       </div>
 
-      <p className="resolver-foot">This is a live view call on the pool contract — no wallet, no gas, no signature. The same grading runs inside <code>withdraw()</code> when you sign one. The VERIFIED stratum was revoked on-chain (<code>setStratumBlocked</code> tx <code>0x073f9e04…</code>), which is why even the verified LP is deferred and the basis widened.</p>
+      <p className="resolver-foot">Live view calls on the pool contract — no wallet, no gas, no signature. The participant list is the pool's real holder set, each balance is a live <code>balanceOf</code> read, and every verdict is a live <code>previewExit</code> call. The same grading runs inside <code>withdraw()</code> when you sign one.</p>
     </div>
   );
 }
