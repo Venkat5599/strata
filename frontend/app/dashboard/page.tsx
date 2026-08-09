@@ -64,6 +64,20 @@ export default function Dashboard() {
 
       <LiveStats />
 
+      <section className="panel demo-guide">
+        <div className="panel-head">
+          <h2>Try it — 60 seconds</h2>
+          <span className="panel-note">all real transactions on Monad testnet</span>
+        </div>
+        <ol className="guide-steps">
+          <li><strong>Connect wallet</strong> (Monad testnet — add it via MetaMask if needed, get MON at{" "}
+            <a href="https://testnet.monad.xyz/faucet" target="_blank" rel="noreferrer">the faucet</a>).</li>
+          <li><strong>Mint 10k dUSDC</strong>, then deposit — watch the ledger split as your shares land in a stratum.</li>
+          <li><strong>Preview an exit</strong> before signing — the resolver grades it Direct / Routed / Blocked, live.</li>
+        </ol>
+        <a className="guide-cta" href="#position">Jump to your position ↓</a>
+      </section>
+
       <section className="panel" id="ledger">
         <div className="panel-head">
           <h2>Stratum ledger</h2>
