@@ -46,7 +46,7 @@ export function LiveStats() {
       {cell("VERIFIED price", pVerified === undefined ? "…" : (Number(pVerified) / 100).toFixed(2), "var(--verified)")}
       {cell("compliance basis", basis === undefined ? "…" : `${Number(basis)} bps`, "var(--verified)")}
       {cell("shares outstanding", fmt(totalSupply))}
-      {cell("USDC held", fmt(usdcHeld))}
+      {cell("dUSDC held", fmt(usdcHeld))}
       {cell("aUSDC held", fmt(ausdcHeld), "var(--verified)")}
       <div className="stat">
         <div className="stat-value" style={{display: "flex", alignItems: "center", gap: 8}}>

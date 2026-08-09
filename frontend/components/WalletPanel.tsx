@@ -150,13 +150,30 @@ export function WalletPanel() {
   };
 
   if (!isConnected) {
+    // No wallet extension detected: point the reviewer somewhere concrete
+    // instead of leaving a dead "Connect" button.
+    const noExtension = typeof window !== "undefined" && !(window as unknown as {ethereum?: unknown}).ethereum;
     return (
       <div className="wallet">
         <div className="wallet-label">WALLET</div>
-        <button className="wallet-connect" disabled={isPending} onClick={() => connect({connector: injected})}>
-          {isPending ? "Connecting…" : "Connect wallet"}
-        </button>
-        <p className="wallet-hint">MetaMask or a compatible browser extension. All actions are real transactions on Monad testnet.</p>
+        {noExtension ? (
+          <>
+            <p className="wallet-hint">No wallet extension detected. To transact you need a browser wallet with the Monad testnet added:</p>
+            <ol className="wallet-steps">
+              <li>Install <a href="https://metamask.io/download/" target="_blank" rel="noreferrer">MetaMask</a> (or another EVM wallet).</li>
+              <li>Add Monad testnet — chain ID <code>10143</code>, RPC <code>https://testnet-rpc.monad.xyz</code>.</li>
+              <li>Get testnet MON at <a href="https://testnet.monad.xyz/faucet" target="_blank" rel="noreferrer">the faucet</a>.</li>
+              <li>Refresh, then connect.</li>
+            </ol>
+          </>
+        ) : (
+          <>
+            <button className="wallet-connect" disabled={isPending} onClick={() => connect({connector: injected})}>
+              {isPending ? "Connecting…" : "Connect wallet"}
+            </button>
+            <p className="wallet-hint">MetaMask or a compatible browser extension. All actions are real transactions on Monad testnet.</p>
+          </>
+        )}
       </div>
     );
   }
@@ -194,13 +211,13 @@ export function WalletPanel() {
                 value={amount} onChange={(e) => setAmount(e.target.value)}
               />
               <button className="wallet-mini" onClick={() => setUseAToken(!useAToken)}>
-                {useAToken ? "aUSDC" : "USDC"}
+                {useAToken ? "aUSDC" : "dUSDC"}
               </button>
             </div>
             {approval.needsApproval ? (
               <button className="wallet-tx" disabled={approval.approvePending}
                 onClick={approval.approve}>
-                {approval.approvePending ? "Confirm in wallet…" : `Approve ${useAToken ? "aUSDC" : "USDC"}`}
+                {approval.approvePending ? "Confirm in wallet…" : `Approve ${useAToken ? "aUSDC" : "dUSDC"}`}
               </button>
             ) : (
               <button className="wallet-tx" disabled={txPending || depositAmount === 0n} onClick={doDeposit}>

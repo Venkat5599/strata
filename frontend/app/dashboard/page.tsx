@@ -94,7 +94,7 @@ export default function Dashboard() {
         {total === 0 && (
           <div className="plan plan-idle">
             <p>
-              The pool currently holds no liquidity. Connect a wallet and deposit USDC or
+              The pool currently holds no liquidity. Connect a wallet and deposit dUSDC or
               aUSDC (with an A-Pass) to see the ledger populate from the contract.
             </p>
           </div>

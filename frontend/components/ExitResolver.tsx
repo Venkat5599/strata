@@ -4,40 +4,62 @@ import {useEffect, useMemo, useState} from "react";
 import {useReadContract} from "wagmi";
 import {POOL} from "@/lib/contracts";
 import {poolReadAbi} from "@/lib/strata";
+import {usePoolLogs, EVENT_TOPICS, wordAt} from "@/lib/poolEvents";
 
 // The whole invention, interactive, no wallet needed:
 // previewExit is a VIEW on the pool — it grades a real exit request against live
-// chain state (the account's credential, the pool's strata, the policy) and
-// returns Direct / Routed / Blocked with the burnable/deferred split.
+// chain state and returns Direct / Routed / Blocked with the burnable/deferred
+// split.
 //
-// Every number here is read from the chain at render time:
-//   - the participants are the pool's real holders (from its event history)
+// Everything is derived from the chain at render time:
+//   - participants = the pool's real depositors, extracted from its event logs
+//     (the Deposited event's indexed account) — nothing hardcoded
 //   - each balance is a live balanceOf read
+//   - each credential state is a live credentialOf read
 //   - the verdict is a live previewExit call
-// Nothing is hardcoded except the account addresses, which are the actual
-// on-chain depositors.
-
-const PARTICIPANT_ADDRS = [
-  {addr: "0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389", label: "Verified LP (holds an A-Pass)"},
-  {addr: "0xA4B9960bc968B487337EF3b16fE823A0D950067C", label: "Unverified LP (no credential)"},
-  {addr: "0xEa3a73e61e63d196012c51c10282C576289aace6", label: "Mixed LP (OPEN + VERIFIED lots)"},
-] as const;
 
 const BRANCH = ["Direct", "Routed", "Blocked"] as const;
 
+const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
 export function ExitResolver() {
+  const {logs} = usePoolLogs();
   const [who, setWho] = useState(0);
   const [pct, setPct] = useState(100);
 
-  const participant = PARTICIPANT_ADDRS[who];
+  // Unique depositors from real Deposited / DepositedAToken events. topics are
+  // [sig, cviRef, account, ...] so the account is topics[2].
+  const holders = useMemo(() => {
+    const seen = new Set<string>();
+    const out: {addr: `0x${string}`}[] = [];
+    for (const log of logs) {
+      if (log.topics?.[0] !== EVENT_TOPICS.DEPOSITED && log.topics?.[0] !== EVENT_TOPICS.DEPOSITED_ATOKEN) continue;
+      const acct = ("0x" + (log.topics?.[2] ?? "").slice(-40)) as `0x${string}`;
+      if (!seen.has(acct)) {
+        seen.add(acct);
+        out.push({addr: acct});
+      }
+    }
+    return out;
+  }, [logs]);
+
+  const participant = holders[Math.min(who, Math.max(0, holders.length - 1))];
 
   // Live balance read — the slider's ceiling is the holder's actual position.
   const balance = useReadContract({
     address: POOL,
     abi: poolReadAbi,
     functionName: "balanceOf",
-    args: [participant.addr],
+    args: participant ? [participant.addr] : undefined,
   }).data as bigint | undefined;
+
+  // Live credential read — labels the participant honestly.
+  const cred = useReadContract({
+    address: POOL,
+    abi: poolReadAbi,
+    functionName: "credentialOf",
+    args: participant ? [participant.addr] : undefined,
+  }).data as [string, number] | undefined;
 
   const balanceUsdc = balance === undefined ? 0 : Number(balance) / 1e6;
   const requested = useMemo(
@@ -49,21 +71,25 @@ export function ExitResolver() {
     address: POOL,
     abi: poolReadAbi,
     functionName: "previewExit",
-    args: [participant.addr, requested],
+    args: participant && requested > 0n ? [participant.addr, requested] : undefined,
   }).data as {branch: number; burnable: bigint; deferred: bigint; reason: number} | undefined;
 
   const burnable = Number(plan?.burnable ?? 0n) / 1e6;
   const deferred = Number(plan?.deferred ?? 0n) / 1e6;
   const branch = BRANCH[plan?.branch ?? 0];
 
+  if (holders.length === 0) {
+    return <p className="feed-empty">no depositors yet — the pool's holders appear here as they deposit.</p>;
+  }
+
   return (
     <div className="resolver">
       <div className="resolver-controls">
         <div className="resolver-who">
-          {PARTICIPANT_ADDRS.map((p, i) => (
-            <button key={p.addr} className={`resolver-pill ${i === who ? "on" : ""}`} onClick={() => setWho(i)}>
+          {holders.map((h, i) => (
+            <button key={h.addr} className={`resolver-pill ${i === who ? "on" : ""}`} onClick={() => setWho(i)}>
               <span className="pill-dot" />
-              {p.label}
+              {short(h.addr)}{cred && i === who ? (cred[1] > 0 ? " · verified" : " · no credential") : ""}
             </button>
           ))}
         </div>
@@ -93,7 +119,7 @@ export function ExitResolver() {
         </p>
       </div>
 
-      <p className="resolver-foot">Live view calls on the pool contract — no wallet, no gas, no signature. The participant list is the pool's real holder set, each balance is a live <code>balanceOf</code> read, and every verdict is a live <code>previewExit</code> call. The same grading runs inside <code>withdraw()</code> when you sign one.</p>
+      <p className="resolver-foot">Live view calls on the pool contract — no wallet, no gas, no signature. The participant list is derived from the pool's real deposit events, balances are live <code>balanceOf</code> reads, and every verdict is a live <code>previewExit</code> call. The same grading runs inside <code>withdraw()</code> when you sign one.</p>
     </div>
   );
 }
