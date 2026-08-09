@@ -49,25 +49,27 @@ A revert is a legally coarse answer: it treats *"58% of this is legally yours"* 
 
 | Contract | Address |
 |---|---|
-| **StrataPool** | `0xa7c457dd7add8e57317ba2b43ea4817f07192dea` |
+| **StrataPool (demo, powers the live app)** | `0x6BA9307946c52c1eac6A8d20613B4fe2C990F968` |
+| Owner (key not held by the team) | `0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0` |
+| Pooled asset — DemoUSDC (dUSDC) | `0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242` |
+| **StrataPool (registered compliance pool)** | `0xa7c457dd7add8e57317ba2b43ea4817f07192dea` |
 | Owner | `0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389` |
-| Pooled asset — USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
 | Reference **and custodied** — aUSDC (CVA) | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
 | A-Pass (CVI) | `0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9` |
 | Cleanverse Policy | `0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd` |
 | Cleanverse Validator | `0xaC7e5179C2C7f03f209136886c172eb34F161792` |
 
-**Registered as a Cleanverse Validator compliance pool** — `POST /validator/is_register` returns `registered: true`, and `POST /validator/rules` echoes the `min_tier: 1` rule the contract actually enforces.
+**Two pools, one story.** `0xa7c457…` is the registered compliance pool — Cleanverse `POST /validator/is_register` returns `registered: true`, and `/rules` echoes the `min_tier: 1` rule the contract enforces (register tx `0x64076d70…`). The live app powers on the demo pool `0x6BA930…`: it pools **DemoUSDC**, a freely-mintable test dollar, because real testnet USDC has no open mint and the Cleanverse faucet is dry — the compliance layer is unchanged and real. It holds its own A-Pass (`balanceOf(pool) == 1`), and every policy check (`policyClears`, `canTransfer`, `isFrozen`) reads the live Cleanverse Policy directly.
 
 Call it yourself:
 
 ```bash
-cast call 0xa7c457dd7add8e57317ba2b43ea4817f07192dea "basis(uint8,uint8)(int256)" 1 0 \
+cast call 0x6BA9307946c52c1eac6A8d20613B4fe2C990F968 "basis(uint8,uint8)(int256)" 1 0 \
   --rpc-url https://testnet-rpc.monad.xyz
 # 225  -> VERIFIED trades 225 bps above OPEN
 
-cast call 0xa7c457dd7add8e57317ba2b43ea4817f07192dea "policyClears(address)(bool)" \
-  0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389 --rpc-url https://testnet-rpc.monad.xyz
+cast call 0x6BA9307946c52c1eac6A8d20613B4fe2C990F968 "policyClears(address)(bool)" \
+  0x28b53f72f7a87a67A57c05fFb76d5D52D1d88dF0 --rpc-url https://testnet-rpc.monad.xyz
 # true
 ```
 
