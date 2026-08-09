@@ -13,7 +13,7 @@ import {poolReadAbi} from "@/lib/strata";
 
 const PARTICIPANTS = [
   {
-    label: "Verified LP (holds an A-Pass)",
+    label: "Verified LP (A-Pass, VERIFIED stratum is revoked)",
     addr: "0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389",
     balance: 250_000,
     color: "var(--verified)",
@@ -25,7 +25,7 @@ const PARTICIPANTS = [
     color: "var(--open)",
   },
   {
-    label: "Mixed LP (OPEN + VERIFIED, stratum now blocked)",
+    label: "Mixed LP (OPEN + VERIFIED)",
     addr: "0xEa3a73e61e63d196012c51c10282C576289aace6",
     balance: 120_000,
     color: "#c62828",
@@ -89,7 +89,7 @@ export function ExitResolver() {
         </p>
       </div>
 
-      <p className="resolver-foot">This is a live view call on the pool contract — no wallet, no gas, no signature. The same grading runs inside <code>withdraw()</code> when you sign one.</p>
+      <p className="resolver-foot">This is a live view call on the pool contract — no wallet, no gas, no signature. The same grading runs inside <code>withdraw()</code> when you sign one. The VERIFIED stratum was revoked on-chain (<code>setStratumBlocked</code> tx <code>0x073f9e04…</code>), which is why even the verified LP is deferred and the basis widened.</p>
     </div>
   );
 }
