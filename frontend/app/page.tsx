@@ -35,8 +35,7 @@ export default function Landing() {
           <a href="#chains">Deployed</a>
         </div>
         <div className="ef-nav-cta">
-          <Link href="/dashboard" className="ef-btn-ghost">Launch app</Link>
-          <Link href="/dashboard" className="ef-btn-dark">Open dashboard</Link>
+          <Link href="/dashboard" className="ef-btn-dark">Launch app</Link>
         </div>
       </nav>
 
