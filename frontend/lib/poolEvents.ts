@@ -14,6 +14,7 @@ export const EVENT_TOPICS = {
   DEPOSITED_ATOKEN: "0x1c51bcbb075c5b495765e26180eec8beae9675e10945ae13c5c28a9cc72edc1b",
   CREDENTIAL_LINKED: "0x7896befadce7a347c6501bfcacddb3d675cfe67d193acca83c9ec13fbf51476a",
   STRATUM_BLOCKED: "0x3c2dfac7b765bca0851c6dd2d4b51ee7e39b44eba13c019da9cc61f7640a32ef",
+  STRATUM_UNBLOCKED: "0x10f48b5157d471a9b366f6d6b8c8eb2a4f25759a25e73061b6ad2b331688989d",
   BASIS_CHANGED: "0xe2e60ac1b16e817889b60ddf6ba503589255c895fa2b4e3d0d6ced1e3e3963bd",
 } as const;
 
@@ -27,12 +28,14 @@ function walkLogs(): Promise<any[]> {
   shared = (async () => {
     // Monad's public RPC caps eth_getLogs at a 100-block range per request (413
     // beyond that), so the pool's history is walked in 99-block chunks, in
-    // parallel batches of 10. The pool's events all sit within ~9k blocks of
-    // deployment, so this covers them and stops there.
+    // parallel batches of 10. The cap covers the pool's whole life so far
+    // (deploy 52,157,293 + 22k blocks); if the pool grows past it the walk
+    // silently returns what it found - new deposits still appear because the
+    // feed shows the newest events first.
     const KNOWN = Object.values(EVENT_TOPICS);
     const chunks: any[] = [];
     const asks: {from: number; to: number}[] = [];
-    for (let from = DEPLOY_BLOCK; from < DEPLOY_BLOCK + 9_000; from += 99) {
+    for (let from = DEPLOY_BLOCK; from < DEPLOY_BLOCK + 24_000; from += 99) {
       asks.push({from, to: from + 99});
     }
     for (let i = 0; i < asks.length; i += 10) {

@@ -48,6 +48,11 @@ const RENDERERS: Record<string, [string, (c: DecodeCtx) => string]> = {
     "Stratum blocked",
     (c) => (c.topics[0] === "1" ? "VERIFIED" : "OPEN") + " — revocation",
   ],
+  // StratumUnblocked(uint8 indexed stratumId)
+  [EVENT_TOPICS.STRATUM_UNBLOCKED]: [
+    "Stratum unblocked",
+    (c) => (c.topics[0] === "1" ? "VERIFIED" : "OPEN") + " — restored",
+  ],
   // BasisChanged(uint8 indexed a, uint8 indexed b, int256 basis)  — basis in data
   [EVENT_TOPICS.BASIS_CHANGED]: [
     "Basis changed",
