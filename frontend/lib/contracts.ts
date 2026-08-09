@@ -4,6 +4,8 @@ import {CLEANVERSE, POOL_ADDRESS} from "./strata";
 export const POOL = POOL_ADDRESS as Address;
 export const USDC = CLEANVERSE.usdc as Address;
 export const AUSDC = CLEANVERSE.ausdc as Address;
+export const APASS = CLEANVERSE.apass as Address;
+export const POLICY = CLEANVERSE.policy as Address;
 
 export const EXPLORER_TX = (h: string) => `https://testnet.monadexplorer.com/tx/${h}`;
 export const EXPLORER_ADDR = (a: string) => `https://testnet.monadexplorer.com/address/${a}`;

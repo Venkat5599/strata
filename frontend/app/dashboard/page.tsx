@@ -5,6 +5,8 @@ import {useReadContract} from "wagmi";
 import {StratumLedger} from "@/components/StratumLedger";
 import {LiveStats} from "@/components/LiveStats";
 import {WalletPanel} from "@/components/WalletPanel";
+import {ActivityFeed} from "@/components/ActivityFeed";
+import {LiveWiring} from "@/components/LiveWiring";
 import {POOL_ADDRESS, type Stratum} from "@/lib/strata";
 import {POOL} from "@/lib/contracts";
 import {poolReadAbi} from "@/lib/strata";
@@ -98,19 +100,22 @@ export default function Dashboard() {
         )}
       </section>
 
+      <section className="panel" id="activity">
+        <div className="panel-head">
+          <h2>Pool activity</h2>
+          <span className="panel-note">real events from the contract, read via eth_getLogs</span>
+        </div>
+        <ActivityFeed />
+      </section>
+
       <section className="panel" id="position">
         <div className="panel-head"><h2>Your position</h2></div>
         <WalletPanel />
       </section>
 
       <section className="panel" id="compliance">
-        <div className="panel-head"><h2>Compliance wiring</h2></div>
-        <div className="wiring">
-          <div className="wire"><h3>CVI · A-PASS</h3><p>Stratum membership reads the on-chain credential, not the wallet. A fresh address inherits nothing.</p></div>
-          <div className="wire"><h3>POLICY</h3><p><code>canTransfer</code> reverts rather than returning false for an uncredentialled party. STRATA catches that and grades it.</p></div>
-          <div className="wire"><h3>CVA · A-TOKEN</h3><p>aUSDC is the registered instrument every policy question is denominated in, and is custodied by <code>depositAToken</code>.</p></div>
-          <div className="wire"><h3>BASIS</h3><p>The gap between two strata is the first live on-chain price for what a transfer restriction costs an issuer.</p></div>
-        </div>
+        <div className="panel-head"><h2>Compliance wiring — live</h2><span className="panel-note">each chip is a real on-chain read</span></div>
+        <LiveWiring />
       </section>
 
       <section className="panel" id="contracts">

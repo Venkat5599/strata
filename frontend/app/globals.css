@@ -486,6 +486,28 @@ button.act[data-tone="danger"]:hover { color: var(--verified); border-color: var
 .guide-steps a { color: var(--accent); text-decoration: underline; }
 .guide-cta { display: inline-block; margin-top: 14px; color: var(--accent); font-weight: 600; text-decoration: none; }
 .guide-cta:hover { text-decoration: underline; }
+
+.feed { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.feed-row { display: flex; align-items: center; gap: 12px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--edge); border-radius: 4px; background: var(--ground); }
+.feed-kind { font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; min-width: 110px; text-align: center; }
+.kind-deposited { background: rgba(46,125,50,0.15); color: #2e7d32; }
+.kind-exit { background: rgba(21,101,192,0.15); color: #1565c0; }
+.kind-credential { background: rgba(123,31,162,0.15); color: #7b1fa2; }
+.kind-stratum { background: rgba(198,40,40,0.15); color: #c62828; }
+.kind-basis { background: rgba(224,139,47,0.15); color: #e08b2f; }
+.feed-detail { flex: 1; color: var(--ink); }
+.feed-tx { color: var(--accent); text-decoration: none; font-family: var(--mono); font-size: 12px; }
+.feed-tx:hover { text-decoration: underline; }
+.feed-when { color: var(--ink-dim); font-family: var(--mono); font-size: 11px; }
+.feed-empty { color: var(--ink-dim); font-size: 13px; margin: 14px 0 0; }
+
+.wire-chip { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 4px; background: var(--ground); }
+.wire-chip h3 { font-family: var(--display); font-size: 14px; font-weight: 600; margin: 0; }
+.wire-chip p { margin: 2px 0 0; font-size: 12px; color: var(--ink-dim); }
+.chip-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; flex: none; background: #9e9e9e; }
+.wire-chip.ok .chip-dot { background: #2e7d32; box-shadow: 0 0 6px rgba(46,125,50,0.6); }
+.wire-chip.bad .chip-dot { background: #c62828; box-shadow: 0 0 6px rgba(198,40,40,0.6); }
+.wire-chip.pending .chip-dot { background: #9e9e9e; animation: pulse 1.2s infinite; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
 .panel-head h2 { font-family: var(--display); font-size: 20px; font-weight: 400; margin: 0; }
 .panel-note { font-size: 12px; color: var(--ink-dim); }
