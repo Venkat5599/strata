@@ -3,10 +3,8 @@
 import {useMemo} from "react";
 import {useReadContract} from "wagmi";
 import {StratumLedger} from "@/components/StratumLedger";
-import {LiveStats} from "@/components/LiveStats";
 import {WalletPanel} from "@/components/WalletPanel";
 import {ActivityFeed} from "@/components/ActivityFeed";
-import {LiveWiring} from "@/components/LiveWiring";
 import {ExitResolver} from "@/components/ExitResolver";
 import {POOL_ADDRESS, type Stratum} from "@/lib/strata";
 import {POOL} from "@/lib/contracts";
@@ -65,8 +63,6 @@ export default function Dashboard() {
         </a>
       </header>
 
-      <LiveStats />
-
       <section className="panel demo-guide">
         <div className="panel-head">
           <h2>Try it — 60 seconds</h2>
@@ -122,15 +118,16 @@ export default function Dashboard() {
         <WalletPanel />
       </section>
 
-      <section className="panel" id="compliance">
-        <div className="panel-head"><h2>Compliance wiring — live</h2><span className="panel-note">each chip is a real on-chain read</span></div>
-        <LiveWiring />
-      </section>
-
       <section className="panel" id="contracts">
         <div className="panel-head"><h2>Deployed contracts</h2><span className="panel-note">Monad testnet · 10143</span></div>
         <div className="addrs">
-          {[["StrataPool", POOL_ADDRESS]].map(([label, addr]) => (
+          {[
+            ["StrataPool", POOL_ADDRESS],
+            ["sCVA (CVA)", "0xa4C1B2d93D1F6A1cF83047C0C068ac15DEf7224f"],
+            ["A-Pass (CVI)", "0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9"],
+            ["Cleanverse Policy", "0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd"],
+            ["dUSDC (asset)", "0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242"],
+          ].map(([label, addr]) => (
             <a key={label} className="addr-row" href={EXPLORER_ADDR(addr)} target="_blank" rel="noreferrer">
               <span className="addr-label">{label}</span>
               <code>{addr}</code>
