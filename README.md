@@ -6,7 +6,7 @@
 
 [![Live demo](https://img.shields.io/badge/●_live-strata--monad--nine.vercel.app-14151a)](https://strata-monad-nine.vercel.app)
 [![Monad: StrataPool](https://img.shields.io/badge/📜_Monad-StrataPool-E84142)](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)
-[![Registered validator](https://img.shields.io/badge/✓_validator-registered-3fb950)](https://testnet.monadexplorer.com/tx/0xcd9bda08)
+[![Registered validator](https://img.shields.io/badge/✓_validator-registered-3fb950)](https://testnet.monadexplorer.com/tx/0x983586fd)
 [![License: MIT](https://img.shields.io/badge/license-MIT-E84142.svg)](LICENSE)
 ![Tests](https://img.shields.io/badge/tests-48%20passing-3fb950)
 ![Stack](https://img.shields.io/badge/Solidity%20·%20Next.js%20·%20TypeScript-14151a)
@@ -18,7 +18,7 @@ STRATA is a position-scoped compliance pool: deposits mint shares stamped with t
 
 ### ▶ Live now — on Monad testnet at **[strata-monad-nine.vercel.app](https://strata-monad-nine.vercel.app)**
 
-**[ Live demo ↗ ](https://strata-monad-nine.vercel.app)** · **[ StrataPool on MonadExplorer ↗ ](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)** · **[ Registered validator tx ↗ ](https://testnet.monadexplorer.com/tx/0xcd9bda08)** · **[ Try the exit resolver ↓ ](#try-the-exit-resolver)** · **[ Call it yourself ↓ ](#see-it-in-one-command)** · **[ Architecture ↓ ](#architecture)** · **[ Honesty table ↓ ](#whats-real-vs-pending--the-honesty-table)**
+**[ Live demo ↗ ](https://strata-monad-nine.vercel.app)** · **[ StrataPool on MonadExplorer ↗ ](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)** · **[ Registered validator tx ↗ ](https://testnet.monadexplorer.com/tx/0x983586fd)** · **[ Try the exit resolver ↓ ](#try-the-exit-resolver)** · **[ Call it yourself ↓ ](#see-it-in-one-command)** · **[ Architecture ↓ ](#architecture)** · **[ Honesty table ↓ ](#whats-real-vs-pending--the-honesty-table)**
 
 Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad testnet. MIT licensed.
 
@@ -87,7 +87,7 @@ $ cast call $POOL "previewExit(address,uint128)(uint8,uint128,uint128,uint8)" \
 2
 ```
 
-Every call is real, verifiable on Monad testnet right now. The pool is registered as a Cleanverse Validator (`POST /validator/is_register` → `registered: true`, register tx `0xcd9bda08…`), holds its own A-Pass (`balanceOf(pool) == 1`, cvRecord 1998), and is populated on-chain: OPEN 150,000 / VERIFIED 250,000 shares, all real deposits.
+Every call is real, verifiable on Monad testnet right now. The pool is registered as a Cleanverse Validator (`POST /validator/is_register` → `registered: true`, register tx `0x983586fd…`), holds its own A-Pass (`balanceOf(pool) == 1`, cvRecord 2089), and is populated on-chain: OPEN 150,000 / VERIFIED 255,000 shares, all real deposits.
 
 ---
 
@@ -231,8 +231,8 @@ The result is that compliance sits on the **claim**, while the instrument a clai
 | **StrataPool** — deposits, stratified lots, graded exits | **Real** — deployed on Monad testnet, verified (Sourcify full match) |
 | **Resolver** — Direct / Routed / Blocked grading | **Real** — pure library, 4 invariants fuzzed at 10,000 runs each |
 | **Live Cleanverse integration** — Policy, A-Pass, A-Token | **Real** — reads the live contracts on every exit; fork suite runs against the live deployment |
-| **Validator registration** | **Real** — `is_register: true`, rules `min_tier: 1`, register tx `0xcd9bda08…` |
-| **Pool's own A-Pass** | **Real** — `balanceOf(pool) == 1`, cvRecord 1998 |
+| **Validator registration** | **Real** — `is_register: true`, rules `min_tier: 1`, register tx `0x983586fd…` |
+| **Pool's own A-Pass** | **Real** — `balanceOf(pool) == 1`, cvRecord 2089 |
 | **Activity feed** — real events from `eth_getLogs` | **Live** on [strata-monad-nine.vercel.app](https://strata-monad-nine.vercel.app) — 8 real events, tx links to the explorer |
 | **Exit resolver on the dashboard** — no wallet needed | **Live** — participants derived from real deposit events, balances and verdicts live reads |
 | **API routes** — `/api/apass`, `/api/apass/mint`, `/api/ccp/export`, `/api/health` | **Live** on Vercel — real Cleanverse calls, key server-side |
@@ -364,8 +364,8 @@ tools/mint-apass.mjs             mint a CVI credential
 tools/register-validator.mjs     register the pool with Cleanverse
 frontend/                        Next.js stratum ledger + exit resolver + activity feed
   app/api/                       apass, apass/mint, ccp/export, health (server routes)
-  components/                    WalletPanel, ExitResolver, ActivityFeed, LiveWiring, LiveStats
-docs/                            PRD, architecture, submission summary, media
+  components/                    WalletPanel, ExitResolver, ActivityFeed, LiveWiring, SidebarStatus
+docs/                            PRD, architecture, one-page summary (PDF), media
 ```
 
 ## Tech stack

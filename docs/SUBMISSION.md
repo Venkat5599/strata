@@ -1,69 +1,66 @@
 # STRATA — one-page summary
 
 **Cleanverse Build: Trusted Assets Hackathon · DeFi track · Monad testnet**
-Repo: https://github.com/Venkat5599/strata
+Repo: https://github.com/Venkat5599/strata · Live: https://strata-monad-nine.vercel.app
 
 ---
 
 ## Problem
 
-A liquidity pool socializes ownership: one asset balance, many claimants. If a single LP is unverified or sanctioned, the pool's holdings are non-compliant **in aggregate**. Every compliant venue therefore gates the entire pool — Uniswap v4 shipped Permissioned Pools doing exactly this. The ERC-3643 literature concedes the cost: restricting to verified entities "narrows the participant pool," and the "liquidity tradeoff is real."
-
-The result is over $32B of tokenized assets fragmented into thin, per-investor-class silos. A tokenized T-bill fund with US-accredited, EU-professional and Singapore-AI classes runs three separate pools, with three price curves, for one identical underlying asset.
+A compliance pool socializes ownership, so one non-compliant LP taints the
+whole pool. The industry answer gates the pool in aggregate — every LP pays
+the strictest restriction. Worse, Cleanverse's own `canTransfer` primitive
+answers non-compliance with a **hard revert**, so a partially-compliant
+withdrawal fails entirely: an LP who legally owns 58% of a position can
+withdraw none of it.
 
 ## Solution
 
-STRATA moves the compliance boundary from the **pool** to the **position**.
+STRATA moves the compliance boundary from the **pool** to the **position**:
+one balance, one price curve, N legal strata (OPEN / VERIFIED), and a
+withdrawal resolver that **grades instead of reverting** — returning
+`Direct`, `Routed`, or `Blocked` with the burnable/deferred split and the
+on-chain reason. Compliance partitions by credential, positions re-attribute
+when credentials change, and the blocked branch prices at zero — so the
+**compliance basis** (`basis(a,b) = price(a) − price(b)`) becomes the first
+on-chain price of a transfer restriction.
 
-Deposits mint shares stamped with the depositor's CVI credential. One asset balance, one price curve, N legal strata. Withdrawal runs through a pure resolver returning `Direct` (fully legal), `Routed` (burn only the legally-redeemable subset), or `Blocked` (no legal path — the claim defers, and the attempt is still recorded on-chain with a reason code).
-
-Because strata differ in legal transferability, they differ in price. That gap — the **compliance basis** — is the first live on-chain price for what a transfer restriction costs an issuer. It reads `225 bps` on the deployed pool today, and widens on revocation.
-
-**The finding the design rests on.** Probing the live Cleanverse Policy contract showed that `canTransfer` **reverts** when a party holds no A-Pass — it does not return `false`. A revert is legally coarse: it treats *"58% of this is legally yours"* as identical to *"none of it is."* STRATA catches that revert and grades the result. Cleanverse's own primitive answers non-compliance with a hard failure; STRATA converts it into a graded, explicable outcome.
+- `previewExit(address, shares)` — pure view, grades any request, no wallet
+- `deposit` / `depositAToken` — shares stamped with the depositor's credential
+- `linkCredential` — migrates anonymous lots to the credential on upgrade
+- `syncStratum` — permissionless mirror of the Policy pause state
+- `setStratumBlocked` — owner acts on a reported credential revocation
+- Four resolver invariants (conservation, no over-release, revocation
+  absolute, freeze dominates) fuzzed at 10,000 runs; 48 tests green
+  (33 local + 15 fork against the live Cleanverse contracts)
 
 ## CVI · CVA integration points
 
-Not adjacent to the protocol — read synchronously, on-chain, on every exit.
-
-| Point | Integration | Proof |
+| Primitive | Role in STRATA | Live state |
 |---|---|---|
-| **CVI — A-Pass** | `credentialOf()` reads the on-chain ERC-721 credential. Positions key on the **credential**, never on `msg.sender`: an address is not a legal person, a credential is, so a fresh wallet inherits nothing and revocation reaches every wallet sharing it. | Minted via `POST /generate_apass` (tier 50, tx `0x80db3087…`), confirmed on-chain `balanceOf == 1` |
-| **CVI — Policy** | `policyClears()` calls `Policy.canTransfer`, mapping its revert to `false`. `isFrozen()` drives the `Blocked` branch. | Fork tests assert both revert and success paths against the live contract |
-| **CVA — A-Token, referenced** | aUSDC is the instrument every policy question is denominated in; rules bind to a registered A-Token. Verified at construction. | `isTokenRegistered(aUSDC) == true`; constructor rejects plain USDC |
-| **CVA — A-Token, custodied** | `depositAToken()` takes aUSDC directly, so the pool **holds real aUSDC**. Lots record their backing, and an A-Token claim settles back in the A-Token rather than a plain-token substitute. | Fork tests deposit and redeem aUSDC against the live deployment |
-| **CVI — pool credential** | The pool holds **its own A-Pass**, minted through the same `/generate_apass` path a user takes. No contract can receive an A-Token without one. | `A-Pass.balanceOf(pool) == 1`, tx `0xbf0968b8...` (live demo pool) |
-| **CCP** | `/api/ccp/export` produces a downloadable audit record combining pool state with the live credential record; api-key stays server-side. | Next.js server route |
-| **Validator** | Pool registered through the **write** path with an EIP-191 owner signature verified against the on-chain `owner()` — which is why the pool is `Ownable`. | `register` tx `0xfba1314b…`, `is_register: true`, rules echo `min_tier: 1` (older deployment); demo pool registered with the same flow |
+| **CVI · A-Pass** (`0xbA82D189…`) | `credentialOf()` reads the on-chain ERC-721 credential; positions key on the credential, never on `msg.sender` | Pool holds its own A-Pass (`balanceOf(pool) == 1`, cvRecord 2089); verified LP tier 50 |
+| **CVA · A-Token** (`Policy.isTokenRegistered`) | the registered instrument every policy question is denominated in | `isTokenRegistered(sCVA) == true`; constructor rejects unregistered tokens |
+| **Policy** (`0x36489bE4…`) | `policyClears()` wraps `canTransfer` (revert → `false`); `isPaused` drives the Blocked branch | aUSDC registered, policy unpaused — chips verified live on the dashboard |
+| **CVA · custodied** | `depositAToken()` takes a registered A-Token directly | **Live**: pool custodies 250,000 sCVA — our own CVA, minted by us, deposited via real `depositAToken` (tx `0x7b489ad6`) |
+| **Validator** | pool registered via `POST /validator/register` with an EIP-191 owner signature | `is_register: true`, rules `min_tier: 1`, tx `0x983586fd` |
+| **CCP export** | `/api/ccp/export` — downloadable audit record combining pool state + live credential | server route, API key never reaches the browser |
 
-Remove any one and STRATA is just a whitelist.
+## Deployed
 
-## Deployed — Monad testnet (chainId 10143)
+**Chain:** Monad testnet (10143) · RPC `https://testnet-rpc.monad.xyz`
 
-```
-StrataPool   0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1   (registered compliance pool, populated)
-Owner        0x483C8C23B2D518a8708c8FabDaF1AE68D7Bed389
-USDC (pooled) 0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242   (DemoUSDC — open testnet mint, 6 decimals)
-aUSDC (CVA)  0xaC0893567D43C3E7e6e35a72803df05416C1f20D   (referenced AND custodied)
-A-Pass (CVI) 0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9
-Policy       0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd
-Validator    0xaC7e5179C2C7f03f209136886c172eb34F161792
-```
+| Contract | Address | State |
+|---|---|---|
+| StrataPool | `0x04df73761E1e524C0112D9a3633A44F8924BC31D` | registered validator, populated: OPEN 150,000 / VERIFIED 255,000 |
+| sCVA (our CVA) | `0xa4C1B2d93D1F6A1cF83047C0C068ac15DEf7224f` | Policy-registered, 250,000 custodied in the pool |
+| A-Pass (CVI) | `0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9` | pool + verified LP hold credentials |
+| Cleanverse Policy | `0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd` | aUSDC registered, unpaused |
+| dUSDC (pooled asset) | `0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242` | open-mint demo dollar |
 
-Judges can call it directly:
+**App:** https://strata-monad-nine.vercel.app (landing + dashboard; every number a live contract read).
 
-```bash
-cast call 0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1 "basis(uint8,uint8)(int256)" 1 0 \
-  --rpc-url https://testnet-rpc.monad.xyz     # 225
-```
-
-## Build quality
-
-**47 tests, 0 failures** — 11 resolver fuzz (invariants I1–I4 at 10 000 runs each), 12 pool integration, 9 audit regressions, 15 fork tests against the **real** Cleanverse contracts, three of which prove live aUSDC custody end to end.
-
-**Security audit: four findings, all fixed, each with a regression test that fails against the pre-fix contract** — including one HIGH where anyone could halt every redemption from a stratum and drive its price to zero. Full detail in the README.
-
-Nine further bugs were caught by tests and screenshots rather than by review, among them silent fund loss when a party was verified after depositing, and a ledger that painted the whole bar redeemable — overstating the one number this demo must never overstate.
-
-## Honest limitations
-
-Partial exit has no legal precedent; it is a proposal. Discount factors are governance-set — the contribution is exposing the spread as a first-class on-chain value, not discovering its market-clearing level. Shares are non-transferable, because a transferable share would let a blocked holder launder an exit through a clean wallet. The Cleanverse institution faucet was empty at submission time, so deposits - aUSDC custody included - are proven by the fork suite against the live deployment rather than by faucet-funded transfers. Wrapping USDC into aUSDC through AccessCore needs a deposit membership only Cleanverse can grant; STRATA does not require it, because verified parties deposit aUSDC they already hold. A production deployment wants a threshold signer set, not one EOA.
+**Honest notes:** testnet USDC has no open mint and the USDC→aUSDC conversion
+is blocked upstream, so the OPEN stratum pools dUSDC and the custodied CVA is
+our own sCVA — both per Cleanverse's sanctioned guidance ("issuing your own
+CVA is permitted"). The pool architecture is unchanged for USDC-backed
+custody the moment their conversion pipeline works.
