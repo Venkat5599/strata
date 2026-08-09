@@ -432,10 +432,14 @@ button.act[data-tone="danger"]:hover { color: var(--verified); border-color: var
 
 .sidebar-status { display: flex; flex-direction: column; gap: 18px; margin: 22px 0; }
 .side-status { border: 1px solid var(--edge); border-radius: 6px; padding: 12px 12px 10px; }
+.side-status.wide { padding: 18px; }
 .side-status-head { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.16em; color: var(--ink-dim); margin-bottom: 10px; }
 .side-status-sub { margin-left: auto; font-size: 9px; letter-spacing: 0; color: var(--ink-faint); }
+.side-status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; }
+.side-status:not(.wide) .side-status-grid { display: block; }
 .side-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; padding: 4px 0; border-bottom: 1px dashed var(--edge); }
-.side-row:last-of-type { border-bottom: none; }
+.side-status:not(.wide) .side-row:last-of-type { border-bottom: none; }
+.side-status.wide .side-row { border-bottom: none; padding: 7px 0; }
 .side-row-label { color: var(--ink-dim); }
 .side-row-value { font-family: var(--mono); color: var(--ink); }
 .side-pool { display: block; font-family: var(--mono); font-size: 11px; color: var(--verified); text-decoration: none; margin-top: 9px; }
