@@ -8,7 +8,8 @@ import {EXPLORER_TX} from "@/lib/contracts";
 // actually happened on the pool — deposits, planned exits, blocks, basis changes.
 // Nothing here is mocked: each row is a parsed event from the contract's logs.
 type FeedRow = {
-  tx: string;
+  tx: string;        // full tx hash, used for the explorer link
+  txShort: string;   // display form
   kind: string;
   detail: string;
   when: string;
@@ -113,8 +114,10 @@ export function ActivityFeed() {
           const [kind, render] = known;
           const block = BigInt(log.blockNumber ?? 0).toString();
           const detail = render({topics, data, word});
+          const txHash = log.transactionHash ?? "";
           out.push({
-            tx: (log.transactionHash ?? "").slice(0, 12) + "…",
+            tx: txHash,
+            txShort: txHash.slice(0, 12) + "…",
             kind,
             detail,
             when: `#${block}`,
@@ -137,7 +140,7 @@ export function ActivityFeed() {
         <li key={i} className="feed-row">
           <span className={`feed-kind kind-${r.kind.split(" ")[0].toLowerCase()}`}>{r.kind}</span>
           <span className="feed-detail">{r.detail}</span>
-          <a className="feed-tx" href={EXPLORER_TX(r.tx)} target="_blank" rel="noreferrer">{r.tx}</a>
+          <a className="feed-tx" href={EXPLORER_TX(r.tx)} target="_blank" rel="noreferrer">{r.txShort}</a>
           <span className="feed-when">{r.when}</span>
         </li>
       ))}
