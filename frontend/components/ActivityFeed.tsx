@@ -28,6 +28,12 @@ const RENDERERS: Record<string, [string, (c: DecodeCtx) => string]> = {
       return `${shares.toLocaleString()} dUSDC → ${stratumId === 1 ? "VERIFIED" : "OPEN"}`;
     },
   ],
+  // DepositedAToken(bytes32 indexed cviRef, address indexed account, uint128 shares)
+  // indexed: cviRef, account; data: shares
+  [EVENT_TOPICS.DEPOSITED_ATOKEN]: [
+    "A-Token deposited",
+    (c) => `${(Number(c.word(c.data, 0)) / 1e6).toLocaleString()} sCVA → VERIFIED`,
+  ],
   // ExitPlanned(bytes32 indexed cviRef, address indexed account, uint8 branch, uint128 burnable, uint128 deferred, uint8 reason)
   // indexed: cviRef, account; data: branch, burnable, deferred, reason
   [EVENT_TOPICS.EXIT_PLANNED]: [

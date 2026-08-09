@@ -1,7 +1,7 @@
 "use client";
 
 import {useReadContract} from "wagmi";
-import {POOL} from "@/lib/contracts";
+import {POOL, CVA} from "@/lib/contracts";
 import {monadTestnet} from "@/lib/strata";
 import {poolReadAbi} from "@/lib/strata";
 import {CLEANVERSE} from "@/lib/strata";
@@ -26,8 +26,9 @@ export function LiveStats() {
   const usdcHeld = useReadContract({
     address: CLEANVERSE.usdc, abi: erc20BalanceAbi, functionName: "balanceOf", args: [POOL], chainId: monadTestnet.id,
   }).data;
-  const ausdcHeld = useReadContract({
-    address: CLEANVERSE.ausdc, abi: erc20BalanceAbi, functionName: "balanceOf", args: [POOL], chainId: monadTestnet.id,
+  // The custodied A-Token: our own Cleanverse CVA (sCVA) via depositAToken.
+  const cvaHeld = useReadContract({
+    address: CVA, abi: erc20BalanceAbi, functionName: "balanceOf", args: [POOL], chainId: monadTestnet.id,
   }).data;
 
   const cell = (label: string, value: string, tone?: string) => (
@@ -47,7 +48,7 @@ export function LiveStats() {
       {cell("compliance basis", basis === undefined ? "…" : `${Number(basis)} bps`, "var(--verified)")}
       {cell("shares outstanding", fmt(totalSupply))}
       {cell("dUSDC held", fmt(usdcHeld))}
-      {cell("aUSDC held", fmt(ausdcHeld), "var(--verified)")}
+      {cell("sCVA custodied", fmt(cvaHeld), "var(--verified)")}
       <div className="stat">
         <div className="stat-value" style={{display: "flex", alignItems: "center", gap: 8}}>
           <span className="live-dot" /> live

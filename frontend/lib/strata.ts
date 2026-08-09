@@ -32,7 +32,7 @@ export const CLEANVERSE = {
 } as const;
 
 export const POOL_ADDRESS = (process.env.NEXT_PUBLIC_POOL_ADDRESS ??
-  "0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1") as Address;
+  "0x04df73761E1e524C0112D9a3633A44F8924BC31D") as Address;
 
 export const publicClient = createPublicClient({chain: monadTestnet, transport: http()});
 

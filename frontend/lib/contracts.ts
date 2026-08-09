@@ -4,6 +4,10 @@ import {CLEANVERSE, POOL_ADDRESS} from "./strata";
 export const POOL = POOL_ADDRESS as Address;
 export const USDC = CLEANVERSE.usdc as Address;
 export const AUSDC = CLEANVERSE.ausdc as Address;
+// Our own Cleanverse CVA (sCVA), launched via /atoken/launch — the custodied
+// A-Token the pool's VERIFIED stratum is backed by (depositAToken path).
+export const CVA = (process.env.NEXT_PUBLIC_CLEANVERSE_CVA ??
+  "0xa4C1B2d93D1F6A1cF83047C0C068ac15DEf7224f") as Address;
 export const APASS = CLEANVERSE.apass as Address;
 export const POLICY = CLEANVERSE.policy as Address;
 

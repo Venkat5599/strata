@@ -19,7 +19,7 @@ export const EVENT_TOPICS = {
 } as const;
 
 const RPC = "https://testnet-rpc.monad.xyz";
-const DEPLOY_BLOCK = 52157293; // pool creation, from the deploy receipt
+const DEPLOY_BLOCK = 52226619; // pool creation (DeployDemo3), from the deploy receipt
 
 let shared: Promise<any[]> | null = null;
 
