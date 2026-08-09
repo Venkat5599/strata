@@ -44,7 +44,7 @@ export function LiveStats() {
     <div className="stats" role="group" aria-label="Live contract reads">
       {cell("OPEN price", pOpen === undefined ? "…" : (Number(pOpen) / 100).toFixed(2))}
       {cell("VERIFIED price", pVerified === undefined ? "…" : (Number(pVerified) / 100).toFixed(2), "var(--verified)")}
-      {cell("compliance basis", basis === undefined ? "…" : `+${Number(basis)} bps`, "var(--verified)")}
+      {cell("compliance basis", basis === undefined ? "…" : `${Number(basis)} bps`, "var(--verified)")}
       {cell("shares outstanding", fmt(totalSupply))}
       {cell("USDC held", fmt(usdcHeld))}
       {cell("aUSDC held", fmt(ausdcHeld), "var(--verified)")}

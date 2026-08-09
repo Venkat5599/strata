@@ -49,7 +49,12 @@ const EVENT_TOPICS: Record<string, [string, (c: DecodeCtx) => string]> = {
   // BasisChanged(uint8 indexed a, uint8 indexed b, int256 basis)  — basis in data
   "0xe2e60ac1b16e817889b60ddf6ba503589255c895fa2b4e3d0d6ced1e3e3963bd": [
     "Basis changed",
-    (c) => `${(Number(c.word(c.data, 0)) / 100)} bps OPEN · VERIFIED`,
+    (c) => {
+      const raw = c.word(c.data, 0);
+      // int256 is two's complement; a word with the high bit set is negative.
+      const signed = raw > (1n << 255n) ? raw - (1n << 256n) : raw;
+      return `${signed.toString()} bps OPEN · VERIFIED`;
+    },
   ],
 };
 
@@ -63,47 +68,36 @@ export function ActivityFeed() {
     let cancelled = false;
     (async () => {
       try {
-        // Monad's public RPC caps eth_getLogs to a 100-block range, so we fetch the
-        // latest block and walk a short window back (the pool is young; all its
-        // events are recent). Chunked reads keep each request inside the cap.
-        const latestHex = await (await fetch(RPC, {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: []}),
-        })).json().then((d) => d.result);
-        const latest = Number(BigInt(latestHex));
+        // Monad's public RPC caps eth_getLogs at a 100-block range per request
+        // (413 beyond that), so the pool's history must be walked in 99-block
+        // chunks. The pool's events cluster in two bands (deploy + the revocation
+        // run), spread over ~8k blocks — so the walk is done in parallel batches
+        // of 10 requests, keeping it to ~2s on a normal connection.
         const DEPLOY_BLOCK = 52157293; // pool creation, from the deploy receipt
-        // Walk the pool's whole life in 99-block chunks (public RPC caps at 100).
-        // Stop early once a chunk returns logs — the pool is young, events cluster
-        // at the start, and we only render the most recent ones.
+        const KNOWN = Object.keys(EVENT_TOPICS);
+        const wanted = 10;
+        const RANGE = 9_000; // deploy .. deploy+9k covers every event so far
         const chunks: any[] = [];
-        for (let from = DEPLOY_BLOCK; from <= latest && chunks.length === 0; from += 99) {
-          const to = Math.min(from + 99, latest);
-          const res = await fetch(RPC, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-              jsonrpc: "2.0", id: 1, method: "eth_getLogs",
-              params: [{address: POOL, fromBlock: "0x" + from.toString(16), toBlock: "0x" + to.toString(16)}],
-            }),
-          });
-          const data = await res.json();
-          if (data.result?.length) chunks.push(...data.result);
+        const asks: {from: number; to: number}[] = [];
+        for (let from = DEPLOY_BLOCK; from < DEPLOY_BLOCK + RANGE; from += 99) {
+          asks.push({from, to: from + 99});
         }
-        // If the deploy-era chunk is empty (RPC lag), fall back to the last 400 blocks.
-        if (chunks.length === 0) {
-          for (let from = Math.max(DEPLOY_BLOCK, latest - 400); from <= latest && chunks.length === 0; from += 99) {
-            const to = Math.min(from + 99, latest);
-            const res = await fetch(RPC, {
-              method: "POST",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({
-                jsonrpc: "2.0", id: 1, method: "eth_getLogs",
-                params: [{address: POOL, fromBlock: "0x" + from.toString(16), toBlock: "0x" + to.toString(16)}],
-              }),
-            });
-            const data = await res.json();
-            if (data.result?.length) chunks.push(...data.result);
+        for (let i = 0; i < asks.length && chunks.length < wanted; i += 10) {
+          const batch = asks.slice(i, i + 10);
+          const results = await Promise.all(
+            batch.map(({from, to}) =>
+              fetch(RPC, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                  jsonrpc: "2.0", id: 1, method: "eth_getLogs",
+                  params: [{address: POOL, fromBlock: "0x" + from.toString(16), toBlock: "0x" + to.toString(16), topics: [KNOWN]}],
+                }),
+              }).then((r) => r.json()).catch(() => null)
+            )
+          );
+          for (const data of results) {
+            if (data?.result?.length) chunks.push(...data.result);
           }
         }
         if (cancelled || chunks.length === 0) return;
