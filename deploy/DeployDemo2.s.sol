@@ -14,9 +14,9 @@ import {ICleanversePolicy} from "../contracts/interfaces/ICleanversePolicy.sol";
 ///         and seeded with real on-chain liquidity in both strata.
 /// @dev    Run: DEPLOYER_PRIVATE_KEY=... forge script deploy/DeployDemo2.s.sol --broadcast
 contract DeployDemo2 is Script {
-    address internal constant AUSDC  = 0xaC0893567D43C3E7e6e35a72803df05416C1f20D;
+    address internal constant AUSDC = 0xaC0893567D43C3E7e6e35a72803df05416C1f20D;
     address internal constant POLICY = 0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd;
-    address internal constant DUSDC  = 0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242;
+    address internal constant DUSDC = 0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242;
 
     function run() external returns (StrataPool pool) {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
