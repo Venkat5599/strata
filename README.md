@@ -5,7 +5,7 @@
 &nbsp;
 
 [![Live demo](https://img.shields.io/badge/●_live-strata--monad--nine.vercel.app-14151a)](https://strata-monad-nine.vercel.app)
-[![Monad: StrataPool](https://img.shields.io/badge/📜_Monad-StrataPool-E84142)](https://testnet.monadexplorer.com/address/0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1)
+[![Monad: StrataPool](https://img.shields.io/badge/📜_Monad-StrataPool-E84142)](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)
 [![Registered validator](https://img.shields.io/badge/✓_validator-registered-3fb950)](https://testnet.monadexplorer.com/tx/0xcd9bda08)
 [![License: MIT](https://img.shields.io/badge/license-MIT-E84142.svg)](LICENSE)
 ![Tests](https://img.shields.io/badge/tests-48%20passing-3fb950)
@@ -18,7 +18,7 @@ STRATA is a position-scoped compliance pool: deposits mint shares stamped with t
 
 ### ▶ Live now — on Monad testnet at **[strata-monad-nine.vercel.app](https://strata-monad-nine.vercel.app)**
 
-**[ Live demo ↗ ](https://strata-monad-nine.vercel.app)** · **[ StrataPool on MonadExplorer ↗ ](https://testnet.monadexplorer.com/address/0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1)** · **[ Registered validator tx ↗ ](https://testnet.monadexplorer.com/tx/0xcd9bda08)** · **[ Try the exit resolver ↓ ](#try-the-exit-resolver)** · **[ Call it yourself ↓ ](#see-it-in-one-command)** · **[ Architecture ↓ ](#architecture)** · **[ Honesty table ↓ ](#whats-real-vs-pending--the-honesty-table)**
+**[ Live demo ↗ ](https://strata-monad-nine.vercel.app)** · **[ StrataPool on MonadExplorer ↗ ](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)** · **[ Registered validator tx ↗ ](https://testnet.monadexplorer.com/tx/0xcd9bda08)** · **[ Try the exit resolver ↓ ](#try-the-exit-resolver)** · **[ Call it yourself ↓ ](#see-it-in-one-command)** · **[ Architecture ↓ ](#architecture)** · **[ Honesty table ↓ ](#whats-real-vs-pending--the-honesty-table)**
 
 Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad testnet. MIT licensed.
 
@@ -58,7 +58,7 @@ Built for the Cleanverse Build: Trusted Assets Hackathon — DeFi track, Monad t
 The resolver is a pure library inside the pool. Every check is a `cast call` — read-only, no gas, verifiable on Monad testnet right now:
 
 ```bash
-POOL=0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1
+POOL=0x04df73761E1e524C0112D9a3633A44F8924BC31D
 RPC=https://testnet-rpc.monad.xyz
 
 # The compliance basis: VERIFIED trades 225 bps above OPEN
@@ -180,10 +180,10 @@ Not adjacent to the protocol — the protocol reads them synchronously, on-chain
 | **CVI (A-Pass)** | `credentialOf()` reads the on-chain ERC-721 credential and derives `cviRef`. Positions key on the **credential**, never on `msg.sender`. | A-Pass minted via `POST /generate_apass` (tier 50, tx `0x80db3087…`), confirmed on-chain: `balanceOf(deployer) == 1` |
 | **CVI (Policy)** | `policyClears()` calls `Policy.canTransfer` and maps its revert to `false`. `isFrozen()` supplies the revocation signal driving the `Blocked` branch. | Fork tests assert both the revert and the success path against the live contract |
 | **CVA (A-Token) — referenced** | aUSDC is the registered instrument every policy question is denominated in — `canTransfer` reverts `TokenNotRegistered` for anything else. Checked at construction. | `isTokenRegistered(aUSDC) == true`; the constructor rejects plain USDC |
-| **CVA (A-Token) — custodied** | `depositAToken()` takes aUSDC directly. The pool holds real aUSDC, and lots record their backing so an A-Token claim settles back in the A-Token. | Fork tests deposit and redeem aUSDC against the live deployment |
+| **CVA (A-Token) — custodied** | `depositAToken()` takes a registered A-Token directly. The pool **custodies our own CVA (sCVA)** — a real Cleanverse-issued instrument — and lots record their backing so an A-Token claim settles back in the A-Token. | **Live**: pool balance 250,000 sCVA (tx `0x7b489ad6`); fork tests additionally prove deposit and redeem against the live deployment |
 | **CVI — pool credential** | The pool holds its own A-Pass, minted through the same `/generate_apass` path a user takes. Without one, no contract can receive an A-Token at all. | `A-Pass.balanceOf(pool) == 1`, tx `0xfea66697...` |
 | **CCP** | `/api/ccp/export` produces a downloadable audit record combining pool state with the live credential record. | Server route; api-key never reaches the browser |
-| **Validator** | The pool is registered through the write path with an EIP-191 owner signature verified against the on-chain `owner()`. | `register` tx `0xfba1314b…` / `0xcd9bda08…`, `is_register: true` |
+| **Validator** | The pool is registered through the write path with an EIP-191 owner signature verified against the on-chain `owner()`. | `register` tx `0x983586fd…`, `is_register: true`, rules `min_tier: 1` |
 
 ---
 
@@ -200,7 +200,7 @@ If an unverified party cannot acquire the pooled asset, they never reach the res
 
 So the pool takes **plain dUSDC** (a freely-mintable test dollar — see the honesty table), which anyone may hold. That is what keeps the OPEN stratum reachable and the central demo beat alive.
 
-It also takes **aUSDC directly**, through `depositAToken()`, and that path needs no wrapping gateway. AccessCore gates wrapping behind a deposit membership only Cleanverse can grant — `isDepositMember` returns false for us and `owner()` is theirs. Neither mattered: **anyone holding aUSDC is already credentialled by construction**, so they can simply deposit it. The only thing blocking that was the pool itself, since a contract without a credential cannot receive an A-Token. The pool was therefore given its own A-Pass, through the same CVI path a user takes.
+It also takes **a registered A-Token directly**, through `depositAToken()`. Because the canonical aUSDC is unobtainable on Monad (see honest limitations), the pool custodies **our own Cleanverse CVA (sCVA)** — launched via `/atoken/launch`, the path Cleanverse Labs explicitly permits ("issuing your own CVA is permitted"). AccessCore gates wrapping behind a deposit membership only Cleanverse can grant — `isDepositMember` returns false for us and `owner()` is theirs — which is why we did not use the wrapped path. The only thing blocking A-Token custody was the pool itself, since a contract without a credential cannot receive an A-Token. The pool was therefore given its own A-Pass, through the same CVI path a user takes.
 
 The result is that compliance sits on the **claim**, while the instrument a claim is denominated in is recorded per lot. What a claim is worth legally and what it is denominated in are separate facts, and the contract keeps them separate.
 
@@ -237,9 +237,9 @@ The result is that compliance sits on the **claim**, while the instrument a clai
 | **Exit resolver on the dashboard** — no wallet needed | **Live** — participants derived from real deposit events, balances and verdicts live reads |
 | **API routes** — `/api/apass`, `/api/apass/mint`, `/api/ccp/export`, `/api/health` | **Live** on Vercel — real Cleanverse calls, key server-side |
 | **Fork suite** — 15 tests against live Cleanverse contracts | **Real** — `RUN_FORK=1 forge test --match-contract Fork` |
-| **Pooled asset is DemoUSDC (dUSDC), not USDC** | **Honest limitation** — testnet USDC has no open mint; see below |
-| **aUSDC custody** | **Real code + fork-proven** — `depositAToken()` works; live custody blocked upstream by Cleanverse (see below) |
-| **Wrapped A-Token over dUSDC** (`/atoken/launch_wrapped_atoken`) | **Blocked upstream by Cleanverse** — both launch requests `ISSUE_FAILED` inside their launcher (see below); `deploy/DeployDemo3.s.sol` is ready to go live the moment their backend re-runs |
+| **Pooled asset is DemoUSDC (dUSDC), not USDC** | **Honest limitation** — testnet USDC has no open mint and the USDC→aUSDC conversion is blocked upstream (see below); the OPEN stratum needs an asset anyone may hold |
+| **CVA custody — REAL, live** | **Live** — the pool custodies **our own Cleanverse CVA (sCVA)** `0xa4C1B2d9…`, launched via `/atoken/launch` (the Cleanverse-sanctioned path: *"issuing your own CVA is permitted"*), minted by us (MINTER_ROLE, tx `0x61f2788e`), deposited via real `depositAToken` (tx `0x7b489ad6`) — pool balance 250,000 sCVA, live on the dashboard |
+| **Wrapped A-Token over dUSDC** (`/atoken/launch_wrapped_atoken`) | **Superseded** — both launch attempts failed inside Cleanverse's launcher (see below), but we pivoted to the sanctioned `/atoken/launch` path which succeeded immediately |
 | **Mainnet deployment** | **Roadmap** — Monad testnet verified, mainnet-ready |
 
 ### Honest limitations
@@ -248,7 +248,7 @@ The result is that compliance sits on the **claim**, while the instrument a clai
 - **Discount factors are governance-set.** The contribution is exposing the spread as a first-class on-chain value, not discovering its market-clearing level. Market-discovered pricing is the post-hackathon matching market.
 - **Shares are non-transferable.** A transferable share would let a blocked holder sell the claim to a clean wallet and exit through it. Secondary transfer of stratified claims needs its own compliance path.
 - **Live deposits need testnet balances.** The Cleanverse institution faucet returned `transfer amount exceeds balance` for `usdc`, `ausdc` and `usdt` at the time of writing — its wallet is empty. The deposit and withdraw paths, aUSDC custody included, are therefore proven by the fork suite against the live deployment with synthesized balances.
-- **aUSDC conversion is blocked upstream by Cleanverse, with evidence.** 20 testnet USDC from the Circle faucet arrived at our deposit address (`0x15fd89cf…`, `query_deposit_address`) and is held there, but the USDC→aUSDC conversion never fired — the deposit wallet initially had no A-Pass (A-Token gate checks `from` as well as `to`), and after we minted one (`generate_apass`, cvRecord 2033, on-chain `balanceOf == 1`) the forwarder still did not re-run. Cleanverse later reported the Monad aUSDC was replaced by the developer (`0xfa96de5b…` is now canonical; `0xaC0893567D…` still passes `isTokenRegistered` and `canTransfer`), and a fresh deposit to the old flow was recorded `non_whitelist_refund`. We also attempted `/atoken/launch_wrapped_atoken` to wrap our own dUSDC into a registered A-Token (the path Cleanverse itself suggested: "you can issue your own ERC20 and then wrap it"): both requests (`WA20260809173143456675`, `WA20260809173247658008`) returned `ISSUE_FAILED` — verified via `debug_traceTransaction` that their launcher (`0xd1ad67ca…` → impl `0x21084e6c…`) reverts with custom error `0xafc0cc84` at exactly its 800,000 gas limit, the same failure they fixed for other teams earlier in the event ("Launch AToken reverted … Panic(0x41)"). We hold 40 USDC at the deposit wallet and both launch request IDs on file; the pool works with dUSDC and the aUSDC/wrapped-A-Token custody path is deployed and fork-proven, ready to go live the moment their backend re-runs the requests (`deploy/DeployDemo3.s.sol`).
+- **aUSDC itself is unobtainable on Monad — we worked around it the sanctioned way.** 20 testnet USDC from the Circle faucet arrived at our deposit address (`0x15fd89cf…`) and is held there, but the USDC→aUSDC conversion never fired — the deposit wallet initially had no A-Pass (A-Token gate checks `from` as well as `to`), and after we minted one (`generate_apass`, cvRecord 2033, on-chain `balanceOf == 1`) the forwarder still did not re-run. Cleanverse reported the Monad aUSDC was replaced by the developer (`0xfa96de5b…` initially shown; `0xaC0893567D…` is the correct address, per Cleanverse Labs) and a fresh deposit to the old flow was recorded `non_whitelist_refund`. Our first workaround, `/atoken/launch_wrapped_atoken` to wrap our own dUSDC, failed on both attempts (`WA20260809173143456675`, `WA20260809173247658008`) — verified via `debug_traceTransaction` that their launcher reverts with custom error `0xafc0cc84` at its 800,000 gas limit. The sanctioned path (per Cleanverse Labs: *"issuing your own CVA is permitted"*, and the API docs: the admin wallet grants `MINTER_ROLE` and the minter mints A-Tokens) worked immediately: **STRATA CVA (sCVA)** `0xa4C1B2d93D1F6A1cF83047C0C068ac15DEf7224f`, launched via `/atoken/launch` (request `IA20260809193521601823`, ISSUED), Policy-registered (`isTokenRegistered == true`), minted 250,000 by us, and custodied in the pool via a real `depositAToken` — the "CVA custodied" claim is live, not fork-proven.
 - **AccessCore wrapping is out of reach.** Converting USDC into aUSDC through AccessCore needs a deposit membership only Cleanverse can grant (`isDepositMember` false; `owner()` is theirs). STRATA does not need it, because verified parties deposit aUSDC they already hold, but a production deployment offering wrapping in-flow would request it.
 - **A-Pass tier granularity is not fully mapped.** `getTokenId(address)` is confirmed; the per-tokenId tier getter did not match ~35 candidate signatures in the implementation bytecode. `canTransfer` already encapsulates the tier check on-chain, and `POST /query_apass` supplies the tier off-chain, so nothing depends on the gap.
 - **Single owner.** A production deployment wants a threshold signer set rather than one EOA.
@@ -261,7 +261,7 @@ The result is that compliance sits on the **claim**, while the instrument a clai
 
 ```bash
 forge test                                   # 33 local tests (resolver fuzz + pool + audit)
-RUN_FORK=1 STRATA_POOL=0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1 \
+RUN_FORK=1 STRATA_POOL=0x04df73761E1e524C0112D9a3633A44F8924BC31D \
   forge test --match-contract Fork           # 15 tests against live Cleanverse contracts
 ```
 
@@ -327,7 +327,7 @@ forge test
 
 # Fork suite against live Cleanverse contracts (needs RPC + pool env)
 export MONAD_RPC_URL=https://testnet-rpc.monad.xyz
-export STRATA_POOL=0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1
+export STRATA_POOL=0x04df73761E1e524C0112D9a3633A44F8924BC31D
 RUN_FORK=1 forge test --match-contract Fork
 
 # Frontend
@@ -341,14 +341,14 @@ The dashboard reads live chain state — point it at the deployed pool and every
 | | |
 |---|---|
 | **Dashboard** | **[strata-monad-nine.vercel.app](https://strata-monad-nine.vercel.app)** — Vercel (landing + `/dashboard`) |
-| **StrataPool** | **[0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1](https://testnet.monadexplorer.com/address/0x150EAf500EEB4a8B491BD2b7692FFA3CD72D33E1)** — Monad testnet |
+| **StrataPool** | **[0x04df73761E1e524C0112D9a3633A44F8924BC31D](https://testnet.monadexplorer.com/address/0x04df73761E1e524C0112D9a3633A44F8924BC31D)** — Monad testnet |
 | **Pooled asset — DemoUSDC (dUSDC)** | `0x16CAf4d60BED18C215d1708870Ecc3fD9b46c242` |
-| **Reference and custodied — aUSDC (CVA)** | `0xaC0893567D43C3E7e6e35a72803df05416C1f20D` |
+| **Custodied CVA — STRATA CVA (sCVA)** | `0xa4C1B2d93D1F6A1cF83047C0C068ac15DEf7224f` — our own, Policy-registered |
 | **A-Pass (CVI)** | `0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9` |
 | **Cleanverse Policy** | `0x36489bE45fa84f70a0c2BDB11D824Be608CB12Dd` |
-| **Cleanverse Validator** | `0xaC7e5179C2C7f03f209136886c172eb34F161792` |
+| **Cleanverse Validator** | registered — `is_register: true`, tx `0x983586fd…` |
 
-Deploy a fresh pool: `DEPLOYER_PRIVATE_KEY=... forge script deploy/Deploy.s.sol --rpc-url $RPC_URL --broadcast`. The reviewer-facing pool is `deploy/DeployDemo2.s.sol` (reproducible, key held by the team); `deploy/DeployDemo3.s.sol` awaits the Cleanverse-wrapped A-Token.
+Deploy a fresh pool: `DEPLOYER_PRIVATE_KEY=... forge script deploy/Deploy.s.sol --rpc-url $RPC_URL --broadcast`. The live pool was deployed with `deploy/DeployDemo3.s.sol` (deploy-only) + `deploy/SeedDemo3.s.sol` (seeds VERIFIED via real `depositAToken` with our sCVA, OPEN via dUSDC).
 
 ## Project layout
 
@@ -379,7 +379,7 @@ docs/                            PRD, architecture, submission summary, media
 
 ## Roadmap
 
-- **Live aUSDC custody** — the moment Cleanverse's launcher re-runs the wrapped-A-Token requests, `DeployDemo3.s.sol` deploys the pool and `depositAToken()` goes live with real custody
+- **Onboard real USDC-backed custody** — swap sCVA for a USDC-backed A-Token the moment Cleanverse's conversion pipeline works; the pool architecture is unchanged (`depositAToken`)
 - **Configurable stratum schemas** so issuers define their own jurisdiction and investor-class partitions
 - **Publish the compliance basis as a public feed** — issuers currently cannot measure what their transfer restrictions cost in basis points
 - **The compliance-basis matching market** — a party who legally *can* hold a blocked position bids on it at a discount, turning compliance friction into yield
